@@ -22,7 +22,7 @@ vpc:
 
 managedNodeGroups:
 - name: spot-nodes
-  instanceTypes: [ "t3.small", "t3a.small", "t2.small" ] # Diversity for better spot availability
+  instanceTypes: [ "t3.large", "t3a.large", "t2.large" ] # Switched to large for higher pod limits
   minSize: 1
   maxSize: 3
   desiredCapacity: 1
