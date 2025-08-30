@@ -20,9 +20,6 @@ vpc:
       ap-south-1b:
         id: "subnet-080ce0a4f33fbcc99"
 
-iam:
-  withOIDC: true
-
 managedNodeGroups:
 - name: spot-nodes
   instanceTypes: [ "t3.small", "t3a.small", "t2.small" ] # Diversity for better spot availability
@@ -31,3 +28,31 @@ managedNodeGroups:
   desiredCapacity: 1
   spot: true
   privateNetworking: true # Nodes in private subnets with NAT for outbound access
+  ssh:
+    allow: true
+    publicKeyName: ASWATH-ADMIN
+  iam:
+    withAddonPolicies:
+      imageBuilder: true
+      autoScaler: true
+      externalDNS: true
+      certManager: true
+      appMesh: true
+      appMeshPreview: true
+      ebs: true
+      fsx: true
+      efs: true
+      awsLoadBalancerController: true
+      xRay: true
+      cloudWatch: true
+      albIngress: true
+iam:
+  withOIDC: true
+  serviceAccounts:
+  - metadata:
+      name: s3-dynamodb-full-access
+      labels: { aws-usage: "application" }
+    attachPolicyARNs:
+    - "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+    - "arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess"
+    - "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
