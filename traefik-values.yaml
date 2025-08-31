@@ -1,0 +1,90 @@
+image:
+  tag: "v3.1.4" # Latest Traefik version as of August 31, 2025; fully compatible with EKS 1.33 (Kubernetes 1.33)
+
+deployment:
+  replicas: 1
+  minReadySeconds: 10
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/path: "/metrics"
+    prometheus.io/port: "9100"
+
+service:
+  type: ClusterIP # ALB will be external; no need for LoadBalancer here
+  spec: {} # No custom ports needed beyond defaults
+
+dashboard:
+  enabled: true
+  ingressRoute: true
+  domain: "traefik.init0xff.com"
+
+ports:
+  metrics:
+    port: 9100
+    expose:
+      default: true
+    exposedPort: 9100
+    protocol: TCP
+  traefik:
+    # Dashboard port
+    port: 9000
+    expose:
+      default: true
+    exposedPort: 9000
+    protocol: TCP
+  web:
+    # HTTP entrypoint for ALB forwarding
+    port: 8000
+    expose:
+      default: true
+    exposedPort: 80
+    protocol: TCP
+  websecure:
+    # Not exposed externally; keep for potential internal TLS if needed
+    port: 8443
+    expose:
+      default: false
+    exposedPort: 443
+    protocol: TCP
+
+providers:
+  kubernetesCRD:
+    enabled: true # Changed to true to load Middlewares and other CRDs
+  kubernetesIngress:
+    enabled: true
+    ingressClass: traefik # Set as default
+    namespaces: [] # Watch all namespaces
+
+ingressClass:
+  enabled: true
+  isDefaultClass: true
+
+logs:
+  general:
+    level: ERROR
+  access:
+    enabled: true
+    filePath: /var/log/traefik/access.log
+    fields:
+      defaultMode: keep
+      names:
+        ClientUsername: keep
+      headers:
+        defaultMode: keep
+        names:
+          User-Agent: keep
+          Authorization: drop
+
+additionalArguments:
+- "--api.insecure"
+- "--api.dashboard=true"
+- "--global.checknewversion"
+- "--global.sendanonymoususage"
+- "--ping=true"
+- "--entrypoints.metrics.address=:9100/tcp"
+- "--entrypoints.traefik.address=:9000/tcp"
+- "--entrypoints.web.address=:8000/tcp"
+- "--entrypoints.websecure.address=:8443/tcp"
+- "--entrypoints.websecure.http.tls=true" # Keep as in old; not used externally but available internally
+- "--metrics.prometheus=true"
+- "--metrics.prometheus.entrypoint=metrics"
