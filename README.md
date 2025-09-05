@@ -128,3 +128,21 @@ Finally, you can deploy the sample Glance dashboard application.
 
 3.  **Access the dashboard:**
     Once the application is deployed, you can access it at `http://glance.init0xff.com` (or your own domain if you configured it). Note that you will need to have DNS configured to point this domain to the address of the ALB created by Traefik.
+
+## 5. Deploy Uptime Kuma
+
+Uptime Kuma is a popular open-source monitoring tool. The following steps will guide you through its deployment.
+
+1.  **Create the `uptime` namespace:**
+    ```bash
+    kubectl create namespace uptime
+    ```
+
+2.  **Apply the Uptime Kuma manifest:**
+    This will create the necessary resources, including a PersistentVolume, PersistentVolumeClaim, Deployment, Service, and Ingress.
+    ```bash
+    kubectl apply -f UptimeKuma/Uptime-Kuma.yaml
+    ```
+
+3.  **Access the Uptime Kuma dashboard:**
+    Once deployed, you can access the Uptime Kuma dashboard at `http://uptime.init0xff.com` (or your configured domain). You will need to have DNS configured to point this domain to the address of the ALB.
