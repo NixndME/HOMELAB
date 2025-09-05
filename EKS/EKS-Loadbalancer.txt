@@ -1,0 +1,12 @@
+helm repo add eks https://aws.github.io/eks-charts
+helm repo update
+
+helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
+  -n kube-system \
+  --set clusterName=home-lab-eks \
+  --set serviceAccount.create=true \
+  --set serviceAccount.name=aws-load-balancer-controller
+
+
+kubectl get deploy/aws-load-balancer-controller -n kube-system
+kubectl logs deploy/aws-load-balancer-controller -n kube-system  # Check for errors

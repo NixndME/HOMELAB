@@ -22,7 +22,7 @@ vpc:
 
 managedNodeGroups:
 - name: spot-nodes
-  instanceTypes: [ "t3.large", "t3a.large", "t2.large" ] # Switched to large for higher pod limits
+  instanceTypes: [ "t3.xlarge", "t3a.xlarge" ] # Switched to xlarge for higher pod limits
   minSize: 1
   maxSize: 3
   desiredCapacity: 1
@@ -32,6 +32,8 @@ managedNodeGroups:
     allow: true
     publicKeyName: ASWATH-ADMIN
   iam:
+    attachPolicyARNs:
+    - "arn:aws:iam::aws:policy/AdministratorAccess" # Full privileges for node IAM role
     withAddonPolicies:
       imageBuilder: true
       autoScaler: true
@@ -46,13 +48,20 @@ managedNodeGroups:
       xRay: true
       cloudWatch: true
       albIngress: true
+
 iam:
   withOIDC: true
   serviceAccounts:
   - metadata:
-      name: s3-dynamodb-full-access
+      name: admin-full-access
+      namespace: default # Explicit namespace for clarity
       labels: { aws-usage: "application" }
     attachPolicyARNs:
-    - "arn:aws:iam::aws:policy/AmazonS3FullAccess"
-    - "arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess"
-    - "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+    - "arn:aws:iam::aws:policy/AdministratorAccess" # Full AWS privileges
+    wellKnownPolicies:
+      # Optional addons for better compatibility
+      imageBuilder: true
+      autoScaler: true
+      awsLoadBalancerController: true
+      ebsCSIController: true
+      efsCSIController: true

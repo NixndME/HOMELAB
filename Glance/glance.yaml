@@ -1,0 +1,433 @@
+---
+# PersistentVolumeClaim for storing Glance configuration
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: glance-config
+  namespace: glance
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: gp2
+---
+# ConfigMap with the Glance configuration template
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: glance-config-template
+  namespace: glance
+data:
+  glance.yml: |
+    branding:
+      title: "Morpheus Data POC Resources (v8.0.8)"
+    server:
+      port: 8080
+      proxied: true
+    pages:
+    - name: "Home"
+      width: slim
+      columns:
+      - size: small
+        widgets:
+        - type: search
+          autofocus: true
+        - type: markets
+          markets:
+          - symbol: "SPY"
+            name: "S&P 500"
+          - symbol: "HPQ"
+            name: "HPE"
+      - size: full
+        widgets:
+        - type: rss
+          title: "Morpheus Videos"
+          limit: 20
+          collapse-after: 10
+          style: grid-cards
+          cache: 1h
+          feeds:
+          - url: "https://www.youtube.com/feeds/videos.xml?playlist_id=PLtS6YX0YOX4e6iZPN6ywDyLmCQ-DOBMr7"
+            title: "HPE Morpheus Playlist"
+        - type: rss
+          title: "Morpheus Data & Related News"
+          limit: 20
+          collapse-after: 10
+          style: horizontal-cards
+          cache: 1h
+          feeds:
+          - url: "https://news.google.com/rss/search?q=morpheus+data+from:hpe.com&hl=en-US&gl=US&ceid=US:en"
+            title: "Morpheus Data (HPE)"
+          - url: "https://news.google.com/rss/search?q=VME+Virtual+Machine+Manager+for+Enterprise+Morpheus+from:hpe.com&hl=en-US&gl=US&ceid=US:en"
+            title: "VME News (HPE)"
+          - url: "https://news.google.com/rss/search?q=HVM+cluster+Morpheus+from:hpe.com&hl=en-US&gl=US&ceid=US:en"
+            title: "HVM Cluster in Morpheus (HPE)"
+          - url: "https://news.google.com/rss/search?q=MVM+Morpheus+from:hpe.com&hl=en-US&gl=US&ceid=US:en"
+            title: "MVM News (HPE)"
+          - url: "https://www.hpe.com/us/en/newsroom/press-releases.html?view=rss"
+            title: "HPE Newsroom"
+    - name: "Stage 1 - Planning & Installation"
+      columns:
+      - size: full
+        widgets:
+        - type: bookmarks
+          groups:
+          - title: "Day 1: Capacity & Requirements"
+            links:
+            - title: "Base Requirements"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-A3332B9C-D74E-4095-AE33-18F65AB33A7A.html&docLocale=en_US"
+              icon: "mdi:format-list-checks"
+            - title: "Storage Considerations"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-45DBACB2-9ED7-4538-9BF9-2D121178F539.html&docLocale=en_US"
+              icon: "mdi:harddisk"
+            - title: "Network Connectivity & Common Ports"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-0DB10170-9557-43A8-BF4B-76F2A2C25FBE.html&docLocale=en_US"
+              icon: "mdi:lan-connect"
+            - title: "Capacity Planning"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-45DBACB2-9ED7-4538-9BF9-2D121178F539.html&docLocale=en_US"
+              icon: "mdi:chart-line"
+          - title: "Day 2: Licensing & Activation"
+            links:
+            - title: "Licensing Overview"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-9BDE2563-18FC-49B0-83D7-47F57E044D97.html&docLocale=en_US"
+              icon: "mdi:key"
+            - title: "Software Licenses Management"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-49494E3A-BB6A-4C0C-95A9-A1BA3989393C.html&docLocale=en_US"
+              icon: "mdi:license"
+            - title: "Initial Appliance Setup"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-F8ACBA94-AE68-44F7-A393-3EBA8C513990.html&docLocale=en_US"
+              icon: "mdi:cog"
+          - title: "Day 3: Installation Procedures"
+            links:
+            - title: "Installation Overview"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-FF4390B9-DCC2-4CE1-A9CC-C883A735E832.html&docLocale=en_US"
+              icon: "mdi:download"
+            - title: "Single Node Installation"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-7A7CF662-8990-4A6D-A6BF-A99759FA11E1.html&docLocale=en_US"
+              icon: "mdi:server"
+            - title: "3 Node HA Installation Example"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-2D8A0A86-2231-4239-AB44-5475B4AE0827.html&docLocale=en_US"
+              icon: "mdi:server-network"
+            - title: "Agent Installation"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-CCC7880B-8316-4FDD-91D6-9680671E23D9.html&docLocale=en_US"
+              icon: "mdi:tools"
+          - title: "Day 4: Post-Installation & Dashboard"
+            links:
+            - title: "Getting Started Guide"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-3CA39221-7A9A-4C51-B56D-D5D1A69876FE.html&docLocale=en_US"
+              icon: "mdi:rocket-launch"
+            - title: "Dashboard Overview"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-2277183A-E315-4439-A885-C111A77C7154.html&docLocale=en_US"
+              icon: "mdi:monitor-dashboard"
+            - title: "User Guides & Best Practices"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-EBA68020-47A6-4B8C-B5C9-1BEB7BE15F24.html&docLocale=en_US"
+              icon: "mdi:book-open-page-variant"
+    - name: "Stage 2 - Administration & Tenancy"
+      columns:
+      - size: full
+        widgets:
+        - type: bookmarks
+          groups:
+          - title: "Day 1: Tenants & Roles"
+            links:
+            - title: "Tenants Overview"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-96AE2ACD-5292-4498-9268-CEB1DAF75BD4.html&docLocale=en_US"
+              icon: "mdi:account-group"
+            - title: "Configuring Tenants"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-96AE2ACD-5292-4498-9268-CEB1DAF75BD4.html&docLocale=en_US"
+              icon: "mdi:cog-sync"
+            - title: "Roles Overview"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-81B4F7F1-22DE-4285-BD37-B5C4D03E0063.html&docLocale=en_US"
+              icon: "mdi:shield-account"
+            - title: "Role Creation & Permissions"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-81B4F7F1-22DE-4285-BD37-B5C4D03E0063.html&docLocale=en_US"
+              icon: "mdi:plus-box"
+          - title: "Day 2: Policies & Governance"
+            links:
+            - title: "Policies Overview"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-0441F3DD-FF73-49C0-8900-718B95266989.html&docLocale=en_US"
+              icon: "mdi:shield-lock"
+            - title: "Policy Types"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-0441F3DD-FF73-49C0-8900-718B95266989.html&docLocale=en_US"
+              icon: "mdi:list-box"
+            - title: "Creating Policies"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-0441F3DD-FF73-49C0-8900-718B95266989.html&docLocale=en_US"
+              icon: "mdi:plus-box"
+            - title: "Cypher Policies"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-ED404402-F168-4635-ADEB-02609465196E.html&docLocale=en_US"
+              icon: "mdi:lock"
+          - title: "Day 3: Identity Sources & Users"
+            links:
+            - title: "Identity Sources Overview"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-ED404402-F168-4635-ADEB-02609465196E.html&docLocale=en_US"
+              icon: "mdi:account-key"
+            - title: "Active Directory Integration"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-27FB9EA7-F54A-4B56-B3C8-0E5BF78A62C6.html&docLocale=en_US"
+              icon: "mdi:directory-user"
+            - title: "Tenant Users"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-96AE2ACD-5292-4498-9268-CEB1DAF75BD4.html&docLocale=en_US"
+              icon: "mdi:account-multiple"
+    - name: "Stage 3 - Cloud Integration & Imaging"
+      columns:
+      - size: full
+        widgets:
+        - type: bookmarks
+          groups:
+          - title: "Day 1: Adding Clouds"
+            links:
+            - title: "Clouds Overview"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-EC91E230-8323-4710-9A47-D57A15BE71AA.html&docLocale=en_US"
+              icon: "mdi:cloud"
+            - title: "Configure AWS Cloud"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-ABC2295F-BA5B-49C6-BF73-263A724F948F.html&docLocale=en_US"
+              icon: "si:aws"
+            - title: "Configure VMware Cloud"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-BE852729-65DF-4377-9A64-F05D47CD9D49.html&docLocale=en_US"
+              icon: "si:vmware"
+            - title: "Configure HVM Cluster"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-76D7FB26-B201-4FB1-ABEF-B8BE590904CF.html&docLocale=en_US"
+              icon: "mdi:lan"
+          - title: "Day 2: Networks & Storage"
+            links:
+            - title: "Network Integration Guide"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-0DB10170-9557-43A8-BF4B-76F2A2C25FBE.html&docLocale=en_US"
+              icon: "mdi:server-network"
+            - title: "Data Stores Configuration"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-D3548220-4D77-4DBB-8313-CFAD68416264.html&docLocale=en_US"
+              icon: "mdi:harddisk"
+            - title: "AWS Route53 DNS Integration"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-B882BBCA-C655-44F1-B570-D8902CDAE0D3.html&docLocale=en_US"
+              icon: "mdi:dns"
+          - title: "Day 3: Images & Templates"
+            links:
+            - title: "Virtual Images Overview"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-1CF5D90B-ABF3-4151-A9CE-275EB6C32BE4.html&docLocale=en_US"
+              icon: "mdi:image"
+            - title: "Add Virtual Images"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-1CF5D90B-ABF3-4151-A9CE-275EB6C32BE4.html&docLocale=en_US"
+              icon: "mdi:image-plus"
+            - title: "Image Builder Tool"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-63B50C5A-C3AD-4543-8A89-58110DDD5064.html&docLocale=en_US"
+              icon: "mdi:tools"
+            - title: "VMware Fusion Configuration"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-98351F93-76B4-480B-91F1-58E3E3492651.html&docLocale=en_US"
+              icon: "mdi:lan"
+    - name: "Stage 4 - Provisioning & Deployment"
+      columns:
+      - size: full
+        widgets:
+        - type: bookmarks
+          groups:
+          - title: "Day 1: Provisioning Fundamentals"
+            links:
+            - title: "Provisioning Concepts"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-C194B726-EA92-4AE8-8428-C2B1FEA0939E.html&docLocale=en_US"
+              icon: "mdi:information"
+            - title: "Provision Virtual Machines"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-D4CF2219-C8A5-44EA-9EF1-E871454781D1.html&docLocale=en_US"
+              icon: "mdi:server"
+            - title: "Creating Instances Guide"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-D28B812E-A196-41C2-8E1D-8FEFFC96BA79.html&docLocale=en_US"
+              icon: "mdi:plus-box"
+          - title: "Day 2: Deployment & Testing"
+            links:
+            - title: "VM Management Guide"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-D4CF2219-C8A5-44EA-9EF1-E871454781D1.html&docLocale=en_US"
+              icon: "mdi:tools"
+            - title: "Test on AWS"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-8F33C60A-34CF-47F2-B9D2-526D1E94B821.html&docLocale=en_US"
+              icon: "si:aws"
+            - title: "Test on VMware"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-C20033B6-4C42-4BEC-84C0-D313859D9126.html&docLocale=en_US"
+              icon: "si:vmware"
+            - title: "Test on HVM"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-76D7FB26-B201-4FB1-ABEF-B8BE590904CF.html&docLocale=en_US"
+              icon: "mdi:lan"
+          - title: "Day 3: Advanced Deployment"
+            links:
+            - title: "Automated Deployment on AWS"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-CD9193A8-3BB1-4FD2-80AF-1EDFDE19786A.html&docLocale=en_US"
+              icon: "mdi:robot"
+            - title: "Morpheus Virtual Desktops"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-17E0EBC8-A495-4198-82BD-63D9D38D6F74.html&docLocale=en_US"
+              icon: "mdi:desktop-classic"
+            - title: "Troubleshooting Provisioning"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-CCC7880B-8316-4FDD-91D6-9680671E23D9.html&docLocale=en_US"
+              icon: "mdi:bug-check"
+    - name: "Stage 5 - Automation & Blueprints"
+      columns:
+      - size: full
+        widgets:
+        - type: bookmarks
+          groups:
+          - title: "Day 1: Tasks & Scripts"
+            links:
+            - title: "Task Configuration"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-87CB98DB-3915-4176-822C-E86A5AA54C4D.html&docLocale=en_US"
+              icon: "mdi:cog-sync"
+            - title: "Pre-Provision & Post-Provision Scripts"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-87CB98DB-3915-4176-822C-E86A5AA54C4D.html&docLocale=en_US"
+              icon: "mdi:script-text"
+            - title: "Ansible Integration"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-014CB518-CCE4-449A-9BCC-241FF8FEA3C5.html&docLocale=en_US"
+              icon: "mdi:ansible"
+          - title: "Day 2: Workflows"
+            links:
+            - title: "Automation Integrations Overview"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-48ED6B2F-2E0B-491F-A497-139DD9B91284.html&docLocale=en_US"
+              icon: "mdi:robot"
+            - title: "Workflows & Tasks"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-87CB98DB-3915-4176-822C-E86A5AA54C4D.html&docLocale=en_US"
+              icon: "mdi:sitemap"
+            - title: "Chef Integration"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-EBA68020-47A6-4B8C-B5C9-1BEB7BE15F24.html&docLocale=en_US"
+              icon: "mdi:chef-hat"
+            - title: "Ansible Troubleshooting"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-014CB518-CCE4-449A-9BCC-241FF8FEA3C5.html&docLocale=en_US"
+              icon: "mdi:bug-check"
+          - title: "Day 3: Blueprints & Catalogs"
+            links:
+            - title: "Blueprints Overview"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-1191CCE3-E610-468E-95EE-ED08BA64A6BA.html&docLocale=en_US"
+              icon: "mdi:blueprint"
+            - title: "Building Catalog Blueprints"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-133E4178-5B4C-4BFF-8213-2662774F0B37.html&docLocale=en_US"
+              icon: "mdi:tools"
+            - title: "Self Service Catalog"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-D507CF71-5B1B-4509-BBAD-8B807D1F7B55.html&docLocale=en_US"
+              icon: "mdi:cart"
+            - title: "Building Catalog Workflows"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-669BC598-B756-4F95-8F4B-7CBBB2AE3135.html&docLocale=en_US"
+              icon: "mdi:sitemap"
+    - name: "Stage 6 - Advanced Operations & Evaluation"
+      columns:
+      - size: full
+        widgets:
+        - type: bookmarks
+          groups:
+          - title: "Day 1: Cost Optimization & Billing"
+            links:
+            - title: "Guidance & Recommendations"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-B86C6485-C80C-480F-87B4-4352963D74A5.html&docLocale=en_US"
+              icon: "mdi:currency-usd"
+            - title: "Usage & Billing"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-91F88F3F-E69B-482A-9E00-689DEBF31FAA.html&docLocale=en_US"
+              icon: "mdi:chart-bar"
+            - title: "Multi-Tenancy Resource Configuration"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-81B4F7F1-22DE-4285-BD37-B5C4D03E0063.html&docLocale=en_US"
+              icon: "mdi:account-group"
+          - title: "Day 2: Security & Backups"
+            links:
+            - title: "Security Overview"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-ED404402-F168-4635-ADEB-02609465196E.html&docLocale=en_US"
+              icon: "mdi:shield-check"
+            - title: "Credentials Management"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-C1CAC383-1FBB-4D17-B097-F2D67A084C27.html&docLocale=en_US"
+              icon: "mdi:lock"
+            - title: "Backups & Recovery (e.g., Cohesity)"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-3F21DAFF-8AA3-49EA-A0D9-64449F488BB8.html&docLocale=en_US"
+              icon: "mdi:backup-restore"
+          - title: "Day 3: Customization & POC Evaluation"
+            links:
+            - title: "Day 2 Operations Overview"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-DAAC86A8-F098-40C7-B403-3D4472BCF1D1.html&docLocale=en_US"
+              icon: "mdi:calendar-today"
+            - title: "Instance Labels & Customization"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-C279B4B2-41AC-4F47-9D11-6142FA3E70DB.html&docLocale=en_US"
+              icon: "mdi:label"
+            - title: "Utilities & Advanced Features"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-0336B7CB-78A8-4980-BF2F-663F5E1B0EF5.html&docLocale=en_US"
+              icon: "mdi:toolbox"
+            - title: "POC Evaluation Guide"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-3CA39221-7A9A-4C51-B56D-D5D1A69876FE.html&docLocale=en_US"
+              icon: "mdi:check-circle"
+---
+# Deployment for Glance application
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: glance-deployment
+  namespace: glance
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: glance
+  template:
+    metadata:
+      labels:
+        app: glance
+    spec:
+      initContainers:
+      - name: init-config
+        image: busybox:1.35
+        command: [ 'sh', '-c', 'if [ ! -f /app/config/glance.yml ]; then cp /template/glance.yml /app/config/glance.yml; fi' ]
+        volumeMounts:
+        - name: config
+          mountPath: /app/config
+        - name: config-template
+          mountPath: /template
+      containers:
+      - name: glance
+        image: glanceapp/glance:latest
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+        - name: config
+          mountPath: /app/config
+        - name: assets
+          mountPath: /app/assets
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+      volumes:
+      - name: config
+        persistentVolumeClaim:
+          claimName: glance-config
+      - name: config-template
+        configMap:
+          name: glance-config-template
+      - name: assets
+        emptyDir: {}
+---
+# Service to expose Glance within the cluster
+apiVersion: v1
+kind: Service
+metadata:
+  name: glance-service
+  namespace: glance
+spec:
+  selector:
+    app: glance
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080
+  type: ClusterIP
+---
+# Ingress for Traefik to expose Glance externally
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: glance-ingress
+  namespace: glance
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  rules:
+  - host: glance.init0xff.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: glance-service
+            port:
+              number: 80

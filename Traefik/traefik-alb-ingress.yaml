@@ -1,0 +1,51 @@
+---
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: traefik-ext-alb-ingress
+  annotations:
+    #name of the lb
+    alb.ingress.kubernetes.io/load-balancer-name: home-lab-eks-alb
+    alb.ingress.kubernetes.io/subnets: subnet-04027f0848e3d6ddc, subnet-054ec56f89ed69000
+    #alb.ingress.kubernetes.io/security-groups: sg-0bce4f6aad076ff3f
+    alb.ingress.kubernetes.io/ssl-policy: "ELBSecurityPolicy-TLS-1-2-2017-01"
+    alb.ingress.kubernetes.io/backend-protocol: HTTP
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS":443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-south-1:058264195463:certificate/061e1a08-d63f-4ea0-ba5f-46358afdc874
+    alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    kubernetes.io/ingress.class: alb
+  labels:
+    app.kubernetes.io/name: traefik
+    app.kubernetes.io/instance: traefik-kube-system
+spec:
+  rules:
+  - host: "*.init0xff.com"
+    http:
+      paths:
+      - path: "/"
+        pathType: Prefix
+        backend:
+          service:
+            name: traefik-svc
+            port:
+              number: 8000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: traefik-dashboard-ingress
+spec:
+  rules:
+  - host: "traefik.init0xff.com"
+    http:
+      paths:
+      - pathType: Prefix
+        path: "/"
+        backend:
+          service:
+            name: traefik-svc
+            port:
+              number: 9000

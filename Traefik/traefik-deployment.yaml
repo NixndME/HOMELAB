@@ -1,0 +1,228 @@
+---
+# Source: traefik/templates/rbac/serviceaccount.yaml
+kind: ServiceAccount
+apiVersion: v1
+metadata:
+  name: traefik
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/name: traefik
+    app.kubernetes.io/instance: traefik-kube-system
+  annotations:
+---
+# Source: traefik/templates/rbac/clusterrole.yaml
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: traefik-kube-system
+  labels:
+    app.kubernetes.io/name: traefik
+    app.kubernetes.io/instance: traefik-kube-system
+rules:
+# Standard Ingress resources
+- apiGroups:
+  - extensions
+  - networking.k8s.io
+  resources:
+  - ingressclasses
+  - ingresses
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - extensions
+  - networking.k8s.io
+  resources:
+  - ingresses/status
+  verbs:
+  - update
+# Core Kubernetes resources
+- apiGroups:
+  - ""
+  resources:
+  - services
+  - endpoints
+  - secrets
+  - configmaps
+  - nodes
+  verbs:
+  - get
+  - list
+  - watch
+# EndpointSlices for newer Kubernetes versions
+- apiGroups:
+  - discovery.k8s.io
+  resources:
+  - endpointslices
+  verbs:
+  - get
+  - list
+  - watch
+# Traefik CRDs - using traefik.io API group
+- apiGroups:
+  - traefik.io
+  resources:
+  - ingressroutes
+  - ingressroutetcps
+  - ingressrouteudps
+  - middlewares
+  - middlewaretcps
+  - tlsoptions
+  - tlsstores
+  - traefikservices
+  - serverstransports
+  - serverstransporttcps
+  verbs:
+  - get
+  - list
+  - watch
+# Legacy Traefik CRDs - keeping traefik.containo.us for backwards compatibility
+- apiGroups:
+  - traefik.containo.us
+  resources:
+  - ingressroutes
+  - ingressroutetcps
+  - ingressrouteudps
+  - middlewares
+  - middlewaretcps
+  - tlsoptions
+  - tlsstores
+  - traefikservices
+  - serverstransports
+  verbs:
+  - get
+  - list
+  - watch
+---
+# Source: traefik/templates/rbac/clusterrolebinding.yaml
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: traefik-kube-system
+  labels:
+    app.kubernetes.io/name: traefik
+    app.kubernetes.io/instance: traefik-kube-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: traefik-kube-system
+subjects:
+- kind: ServiceAccount
+  name: traefik
+  namespace: kube-system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: traefik
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/name: traefik
+    app.kubernetes.io/instance: traefik-kube-system
+  annotations:
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: traefik
+      app.kubernetes.io/instance: traefik-kube-system
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  minReadySeconds: 10
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "9100"
+      labels:
+        app.kubernetes.io/name: traefik
+        app.kubernetes.io/instance: traefik-kube-system
+    spec:
+      serviceAccountName: traefik
+      terminationGracePeriodSeconds: 60
+      hostNetwork: false
+      containers:
+      - image: "traefik:v3.5.1"
+        imagePullPolicy: IfNotPresent
+        name: traefik
+        ports:
+        - name: "metrics"
+          containerPort: 9100
+          protocol: "TCP"
+        - name: "traefik"
+          containerPort: 9000
+          protocol: "TCP"
+        - name: "web"
+          containerPort: 8000
+          protocol: "TCP"
+        - name: "websecure"
+          containerPort: 8443
+          protocol: "TCP"
+        args:
+        - "--api.insecure"
+        - "--api.dashboard=true"
+        - "--global.checknewversion"
+        - "--global.sendanonymoususage"
+        - "--ping=true"
+        - "--entrypoints.metrics.address=:9100/tcp"
+        - "--entrypoints.traefik.address=:9000/tcp"
+        - "--entrypoints.web.address=:8000/tcp"
+        - "--entrypoints.websecure.address=:8443/tcp"
+        - "--entrypoints.websecure.http.tls=true"
+        - "--metrics.prometheus=true"
+        - "--metrics.prometheus.entrypoint=metrics"
+        - "--providers.kubernetescrd"
+        - "--providers.kubernetesingress"
+        - "--accesslog"
+        - "--accesslog.fields.defaultmode=keep"
+        - "--accesslog.fields.names.ClientUsername=keep"
+        - "--accesslog.fields.headers.defaultmode=keep"
+        - "--accesslog.fields.headers.names.User-Agent=keep"
+        - "--accesslog.fields.headers.names.Authorization=drop"
+        - "--log"
+        - "--log.level=ERROR"
+        - "--accessLog.filePath=/var/log/traefik/access.log"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: traefik-svc
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/name: traefik
+    app.kubernetes.io/instance: traefik-kube-system
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: traefik
+    app.kubernetes.io/instance: traefik-kube-system
+  ports:
+  - port: 8000
+    name: "web"
+    targetPort: web
+    protocol: TCP
+  - port: 8443
+    name: "websecure"
+    targetPort: websecure
+    protocol: TCP
+  - port: 9000
+    name: "traefik"
+    targetPort: traefik
+    protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  annotations:
+    ingressclass.kubernetes.io/is-default-class: "true"
+  labels:
+    app.kubernetes.io/name: traefik
+    app.kubernetes.io/instance: traefik-kube-system
+  name: traefik
+spec:
+  controller: traefik.io/ingress-controller
