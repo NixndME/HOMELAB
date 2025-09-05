@@ -22,41 +22,142 @@ metadata:
 data:
   glance.yml: |
     branding:
-      title: "Morpheus Data POC Resources (v8.0.8)"
+      title: "HPE Morpheus Data POC Resources (v8.0.8)"
     server:
       port: 8080
       proxied: true
+    theme:
+      presets:
+        Dark Mode:
+          background-color: "0,0,0"
+          primary-color: "200,50,50"
+          contrast-multiplier: 1.2
+        Light Mode:
+          light: true
+          background-color: "0,0,100"
+          primary-color: "200,50,20"
+          contrast-multiplier: 1.0
+      disable-picker: false
     pages:
     - name: "Home"
-      width: slim
+      width: default
       columns:
       - size: small
         widgets:
         - type: search
           autofocus: true
-        - type: markets
-          markets:
-          - symbol: "SPY"
-            name: "S&P 500"
-          - symbol: "HPQ"
-            name: "HPE"
+          search-engine: google
+        - type: clock
+          format: 24h
+        - type: weather
+          location: "San Francisco"
+          units: imperial
+          cache: 30m
+        - type: html
+          title: "POC Milestones Calendar"
+          content: |
+            <ul>
+              <li>Week 1: Planning & Installation</li>
+              <li>Week 2: Administration & Tenancy</li>
+              <li>Week 3: Cloud Integration</li>
+              <li>Week 4: Provisioning & Deployment</li>
+              <li>Week 5: Policy & Governance</li>
+              <li>Week 6: Automation & Blueprints</li>
+              <li>Week 7: Best Practices & Evaluation</li>
+            </ul>
+        - type: calendar
+          first-day: monday
       - size: full
         widgets:
-        - type: rss
-          title: "Morpheus Videos"
+        - type: releases
+          title: "Morpheus GitHub Releases"
+          repositories:
+          - "HewlettPackard/morpheus-go-sdk"
+          - "HewlettPackard/morpheus-cli"
+          - "HewlettPackard/morpheus-plugin-core"
+          - "HewlettPackard/morpheus-openapi"
+          - "HewlettPackard/helm-charts-morpheus"
+          - "HewlettPackard/morpheus-olvm-plugin"
+          - "HewlettPackard/morpheus-nutanix-prism-plugin"
+          limit: 10
+          collapse-after: 5
+          cache: 30m
+        - type: videos
+          title: "HPE Morpheus YouTube Videos"
+          playlists:
+          - "UUpY6xltS6w6O3dkg6JfC1wg"
+          - "PLtS6YX0YOX4e6iZPN6ywDyLmCQ-DOBMr7"
           limit: 20
-          collapse-after: 10
           style: grid-cards
-          cache: 1h
-          feeds:
-          - url: "https://www.youtube.com/feeds/videos.xml?playlist_id=PLtS6YX0YOX4e6iZPN6ywDyLmCQ-DOBMr7"
-            title: "HPE Morpheus Playlist"
+          cache: 30m
+        - type: group
+          widgets:
+          - type: rss
+            title: "r/sysadmin"
+            limit: 10
+            collapse-after: 5
+            style: horizontal-cards
+            cache: 30m
+            feeds:
+            - url: "https://www.reddit.com/r/sysadmin/search.rss?q=Morpheus+OR+VME+OR+HVM&restrict_sr=1&sort=new"
+              title: "r/sysadmin Morpheus/VME/HVM"
+          - type: rss
+            title: "r/devops"
+            limit: 10
+            collapse-after: 5
+            style: horizontal-cards
+            cache: 30m
+            feeds:
+            - url: "https://www.reddit.com/r/devops/search.rss?q=Morpheus+OR+VME+OR+HVM&restrict_sr=1&sort=new"
+              title: "r/devops Morpheus/VME/HVM"
+          - type: rss
+            title: "r/vmware"
+            limit: 10
+            collapse-after: 5
+            style: horizontal-cards
+            cache: 30m
+            feeds:
+            - url: "https://www.reddit.com/r/vmware/search.rss?q=Morpheus+OR+VME+OR+HVM&restrict_sr=1&sort=new"
+              title: "r/vmware Morpheus/VME/HVM"
+          - type: rss
+            title: "r/cloudcomputing"
+            limit: 10
+            collapse-after: 5
+            style: horizontal-cards
+            cache: 30m
+            feeds:
+            - url: "https://www.reddit.com/r/cloudcomputing/search.rss?q=Morpheus+OR+VME+OR+HVM&restrict_sr=1&sort=new"
+              title: "r/cloudcomputing Morpheus/VME/HVM"
+        - type: repository
+          title: "Morpheus GitHub Issues"
+          repository: "HewlettPackard/morpheus-go-sdk"
+          pull-requests-limit: 5
+          issues-limit: 5
+          commits-limit: -1
+        - type: repository
+          title: "Morpheus CLI Issues"
+          repository: "HewlettPackard/morpheus-cli"
+          pull-requests-limit: 5
+          issues-limit: 5
+          commits-limit: -1
+        - type: repository
+          title: "Morpheus Plugin Core Issues"
+          repository: "HewlettPackard/morpheus-plugin-core"
+          pull-requests-limit: 5
+          issues-limit: 5
+          commits-limit: -1
+        - type: repository
+          title: "Morpheus OpenAPI Issues"
+          repository: "HewlettPackard/morpheus-openapi"
+          pull-requests-limit: 5
+          issues-limit: 5
+          commits-limit: -1
         - type: rss
           title: "Morpheus Data & Related News"
           limit: 20
           collapse-after: 10
           style: horizontal-cards
-          cache: 1h
+          cache: 30m
           feeds:
           - url: "https://news.google.com/rss/search?q=morpheus+data+from:hpe.com&hl=en-US&gl=US&ceid=US:en"
             title: "Morpheus Data (HPE)"
@@ -64,11 +165,54 @@ data:
             title: "VME News (HPE)"
           - url: "https://news.google.com/rss/search?q=HVM+cluster+Morpheus+from:hpe.com&hl=en-US&gl=US&ceid=US:en"
             title: "HVM Cluster in Morpheus (HPE)"
-          - url: "https://news.google.com/rss/search?q=MVM+Morpheus+from:hpe.com&hl=en-US&gl=US&ceid=US:en"
-            title: "MVM News (HPE)"
+          - url: "https://news.google.com/rss/search?q=MKS+Kubernetes+Morpheus+from:hpe.com&hl=en-US&gl=US&ceid=US:en"
+            title: "MKS Kubernetes in Morpheus (HPE)"
           - url: "https://www.hpe.com/us/en/newsroom/press-releases.html?view=rss"
             title: "HPE Newsroom"
-    - name: "Stage 1 - Planning & Installation"
+          - url: "https://community.hpe.com/t5/hpe-morpheus-software/ct-p/hpe_morpheus_software?output=rss"
+            title: "HPE Morpheus Community"
+          - url: "https://www.hpe.com/us/en/newsroom/blog.rss"
+            title: "HPE Blog"
+      - size: small
+        widgets:
+        - type: markets
+          markets:
+          - symbol: "SPY"
+            name: "S&P 500"
+          - symbol: "HPQ"
+            name: "HPE"
+        - type: bookmarks
+          groups:
+          - title: "Key Morpheus Resources"
+            links:
+            - title: "API Documentation"
+              url: "https://apidocs.morpheusdata.com/"
+              icon: "mdi:api"
+            - title: "Developer Resources"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-3CEB493A-1086-4AE2-8220-93B372329509.html&docLocale=en_US"
+              icon: "mdi:code-braces"
+            - title: "Plugin Documentation"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-8838F0ED-76A6-4E9A-ACE2-BB544ED1E5B3.html&docLocale=en_US"
+              icon: "mdi:puzzle"
+            - title: "HPE Digital Trust Center"
+              url: "https://www.hpe.com/us/en/about/digital-trust-center.html"
+              icon: "mdi:shield-check"
+            - title: "VME Documentation"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006560en_us&docLocale=en_US"
+              icon: "mdi:server"
+            - title: "HVM Cluster Documentation"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-76D7FB26-B201-4FB1-ABEF-B8BE590904CF.html&docLocale=en_US"
+              icon: "mdi:lan"
+        - type: html
+          title: "HPE Morpheus v8.0.9 Highlights"
+          content: |
+            <ul>
+              <li>Power Policy for HVM: Optimize cluster performance with automated scaling.</li>
+              <li>VME Integration: Seamless VMware alternative with Veeam/Commvault support.</li>
+              <li>API Enhancements: Expanded REST endpoints for automation (see <a href="https://apidocs.morpheusdata.com">API Docs</a>).</li>
+              <li>Community Edition: Free tier for testing Morpheus (2025).</li>
+            </ul>
+    - name: "Phase 1 - Planning & Installation"
       columns:
       - size: full
         widgets:
@@ -124,7 +268,7 @@ data:
             - title: "User Guides & Best Practices"
               url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-EBA68020-47A6-4B8C-B5C9-1BEB7BE15F24.html&docLocale=en_US"
               icon: "mdi:book-open-page-variant"
-    - name: "Stage 2 - Administration & Tenancy"
+    - name: "Phase 2 - Administration & Tenancy"
       columns:
       - size: full
         widgets:
@@ -144,20 +288,6 @@ data:
             - title: "Role Creation & Permissions"
               url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-81B4F7F1-22DE-4285-BD37-B5C4D03E0063.html&docLocale=en_US"
               icon: "mdi:plus-box"
-          - title: "Day 2: Policies & Governance"
-            links:
-            - title: "Policies Overview"
-              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-0441F3DD-FF73-49C0-8900-718B95266989.html&docLocale=en_US"
-              icon: "mdi:shield-lock"
-            - title: "Policy Types"
-              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-0441F3DD-FF73-49C0-8900-718B95266989.html&docLocale=en_US"
-              icon: "mdi:list-box"
-            - title: "Creating Policies"
-              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-0441F3DD-FF73-49C0-8900-718B95266989.html&docLocale=en_US"
-              icon: "mdi:plus-box"
-            - title: "Cypher Policies"
-              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-ED404402-F168-4635-ADEB-02609465196E.html&docLocale=en_US"
-              icon: "mdi:lock"
           - title: "Day 3: Identity Sources & Users"
             links:
             - title: "Identity Sources Overview"
@@ -169,7 +299,7 @@ data:
             - title: "Tenant Users"
               url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-96AE2ACD-5292-4498-9268-CEB1DAF75BD4.html&docLocale=en_US"
               icon: "mdi:account-multiple"
-    - name: "Stage 3 - Cloud Integration & Imaging"
+    - name: "Phase 3 - Cloud Integration & Imaging"
       columns:
       - size: full
         widgets:
@@ -195,26 +325,9 @@ data:
               url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-0DB10170-9557-43A8-BF4B-76F2A2C25FBE.html&docLocale=en_US"
               icon: "mdi:server-network"
             - title: "Data Stores Configuration"
-              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-D3548220-4D77-4DBB-8313-CFAD68416264.html&docLocale=en_US"
-              icon: "mdi:harddisk"
-            - title: "AWS Route53 DNS Integration"
-              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-B882BBCA-C655-44F1-B570-D8902CDAE0D3.html&docLocale=en_US"
-              icon: "mdi:dns"
-          - title: "Day 3: Images & Templates"
-            links:
-            - title: "Virtual Images Overview"
-              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-1CF5D90B-ABF3-4151-A9CE-275EB6C32BE4.html&docLocale=en_US"
-              icon: "mdi:image"
-            - title: "Add Virtual Images"
-              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-1CF5D90B-ABF3-4151-A9CE-275EB6C32BE4.html&docLocale=en_US"
-              icon: "mdi:image-plus"
-            - title: "Image Builder Tool"
-              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-63B50C5A-C3AD-4543-8A89-58110DDD5064.html&docLocale=en_US"
-              icon: "mdi:tools"
-            - title: "VMware Fusion Configuration"
               url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-98351F93-76B4-480B-91F1-58E3E3492651.html&docLocale=en_US"
               icon: "mdi:lan"
-    - name: "Stage 4 - Provisioning & Deployment"
+    - name: "Phase 4 - Provisioning & Deployment"
       columns:
       - size: full
         widgets:
@@ -256,7 +369,43 @@ data:
             - title: "Troubleshooting Provisioning"
               url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-CCC7880B-8316-4FDD-91D6-9680671E23D9.html&docLocale=en_US"
               icon: "mdi:bug-check"
-    - name: "Stage 5 - Automation & Blueprints"
+    - name: "Phase 5 - Policy & Governance"
+      columns:
+      - size: full
+        widgets:
+        - type: bookmarks
+          groups:
+          - title: "Day 1: Policies Overview"
+            links:
+            - title: "Policies Overview"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-0441F3DD-FF73-49C0-8900-718B95266989.html&docLocale=en_US"
+              icon: "mdi:shield-lock"
+            - title: "Policy Types"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-0441F3DD-FF73-49C0-8900-718B95266989.html&docLocale=en_US"
+              icon: "mdi:list-box"
+            - title: "Creating Policies"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-0441F3DD-FF73-49C0-8900-718B95266989.html&docLocale=en_US"
+              icon: "mdi:plus-box"
+          - title: "Day 2: Advanced Governance"
+            links:
+            - title: "Cypher Policies"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-ED404402-F168-4635-ADEB-02609465196E.html&docLocale=en_US"
+              icon: "mdi:lock"
+            - title: "Security Overview"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-ED404402-F168-4635-ADEB-02609465196E.html&docLocale=en_US"
+              icon: "mdi:shield-check"
+            - title: "Credentials Management"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-C1CAC383-1FBB-4D17-B097-F2D67A084C27.html&docLocale=en_US"
+              icon: "mdi:lock"
+          - title: "Day 3: Compliance & Auditing"
+            links:
+            - title: "Multi-Tenancy Resource Configuration"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-81B4F7F1-22DE-4285-BD37-B5C4D03E0063.html&docLocale=en_US"
+              icon: "mdi:account-group"
+            - title: "Guidance & Recommendations"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-B86C6485-C80C-480F-87B4-4352963D74A5.html&docLocale=en_US"
+              icon: "mdi:currency-usd"
+    - name: "Phase 6 - Automation & Blueprints"
       columns:
       - size: full
         widgets:
@@ -271,7 +420,7 @@ data:
               url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-87CB98DB-3915-4176-822C-E86A5AA54C4D.html&docLocale=en_US"
               icon: "mdi:script-text"
             - title: "Ansible Integration"
-              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-014CB518-CCE4-449A-9BCC-241FF8FEA3C5.html&docLocale=en_US"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-B47A4967-DCA3-45C4-B983-83CEB43711DC.html&docLocale=en_US"
               icon: "mdi:ansible"
           - title: "Day 2: Workflows"
             links:
@@ -287,7 +436,7 @@ data:
             - title: "Ansible Troubleshooting"
               url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-014CB518-CCE4-449A-9BCC-241FF8FEA3C5.html&docLocale=en_US"
               icon: "mdi:bug-check"
-          - title: "Day 3: Blueprints & Catalogs"
+          - title: "Day 3: Blueprints & Catalogs (Optional Integrations)"
             links:
             - title: "Blueprints Overview"
               url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-1191CCE3-E610-468E-95EE-ED08BA64A6BA.html&docLocale=en_US"
@@ -301,7 +450,10 @@ data:
             - title: "Building Catalog Workflows"
               url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-669BC598-B756-4F95-8F4B-7CBBB2AE3135.html&docLocale=en_US"
               icon: "mdi:sitemap"
-    - name: "Stage 6 - Advanced Operations & Evaluation"
+            - title: "Terraform Integration"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-C52A3557-8979-44A4-9FCE-480426F55A7F.html&docLocale=en_US"
+              icon: "si:terraform"
+    - name: "Phase 7 - Best Practices & Value Optimization"
       columns:
       - size: full
         widgets:
@@ -343,6 +495,9 @@ data:
             - title: "POC Evaluation Guide"
               url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-3CA39221-7A9A-4C51-B56D-D5D1A69876FE.html&docLocale=en_US"
               icon: "mdi:check-circle"
+            - title: "Resource Center for Best Practices"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-3CEB493A-1086-4AE2-8220-93B372329509.html&docLocale=en_US"
+              icon: "mdi:book-multiple"
 ---
 # Deployment for Glance application
 apiVersion: apps/v1
