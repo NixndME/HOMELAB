@@ -1,4 +1,5 @@
----
+####
+
 # PersistentVolumeClaim for storing Glance configuration
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -11,7 +12,7 @@ spec:
   resources:
     requests:
       storage: 1Gi
-  storageClassName: gp2
+  storageClassName: gp3
 ---
 # ConfigMap with the Glance configuration template
 apiVersion: v1
@@ -29,14 +30,27 @@ data:
     theme:
       presets:
         Dark Mode:
-          background-color: "0,0,0"
-          primary-color: "200,50,50"
-          contrast-multiplier: 1.2
+          background-color: "0,0,13"      # HPE Gray 900 (hsl(0, 0%, 13%))
+          primary-color: "171,99,33"      # HPE Green 500 (hsl(171, 99%, 33%))
+          text-color: "0,0,100"           # White (hsl(0, 0%, 100%))
+          contrast-multiplier: 1.3        # Enhanced for readability
         Light Mode:
           light: true
-          background-color: "0,0,100"
-          primary-color: "200,50,20"
-          contrast-multiplier: 1.0
+          background-color: "0,0,96"      # HPE Gray 50 (hsl(0, 0%, 96%))
+          primary-color: "202,100,37"     # HPE Blue 500 (hsl(202, 100%, 37%))
+          text-color: "0,0,13"            # HPE Gray 900 (hsl(0, 0%, 13%))
+          contrast-multiplier: 1.1        # Slightly enhanced for readability
+        Material Theme:
+          background-color: "0,0,96"      # HPE Gray 50 (hsl(0, 0%, 96%))
+          primary-color: "171,99,33"      # HPE Green 500 (hsl(171, 99%, 33%))
+          accent-color: "202,100,37"      # HPE Blue 500 (hsl(202, 100%, 37%))
+          text-color: "0,0,13"            # HPE Gray 900 (hsl(0, 0%, 13%))
+          contrast-multiplier: 1.2        # Balanced for Material aesthetic
+        Purple Theme:
+          background-color: "0,0,13"      # HPE Gray 900 (hsl(0, 0%, 13%))
+          primary-color: "267,53,37"      # HPE Purple 500 (hsl(267, 53%, 37%))
+          text-color: "0,0,100"           # White (hsl(0, 0%, 100%))
+          contrast-multiplier: 1.3        # Enhanced for readability
       disable-picker: false
     pages:
     - name: "Home"
@@ -283,7 +297,7 @@ data:
               url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-96AE2ACD-5292-4498-9268-CEB1DAF75BD4.html&docLocale=en_US"
               icon: "mdi:cog-sync"
             - title: "Roles Overview"
-              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-81B4F7F1-22DE-4285-BD37-B5C4D03E0063.html&docLocale=en_US"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-81B4F7F1-22DE-4285-BD37-B5C4D03E0063&docLocale=en_US"
               icon: "mdi:shield-account"
             - title: "Role Creation & Permissions"
               url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-81B4F7F1-22DE-4285-BD37-B5C4D03E0063.html&docLocale=en_US"

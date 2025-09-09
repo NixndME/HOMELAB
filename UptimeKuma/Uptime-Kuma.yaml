@@ -1,22 +1,4 @@
 apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: uptime-pv
-  namespace: uptime
-  labels:
-    type: uptime
-spec:
-  storageClassName: gp2
-  persistentVolumeReclaimPolicy: Delete
-  volumeMode: Filesystem
-  capacity:
-    storage: 10Gi
-  accessModes:
-  - ReadWriteOnce
-  awsElasticBlockStore:
-    volumeID: vol-0a133003e712cee89
----
-apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: uptime-pvc
@@ -27,10 +9,7 @@ spec:
   resources:
     requests:
       storage: 10Gi
-  storageClassName: gp2 # Add this to match the PV
-  selector:
-    matchLabels:
-      type: uptime
+  storageClassName: gp3
 ---
 apiVersion: apps/v1
 kind: Deployment
