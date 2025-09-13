@@ -1,0 +1,35 @@
+# Base Authentik config
+authentik:
+  secret_key: "6c7vjiOc5vbD2ye6gXasg0RI8Kc0F2EJywvDvYbqPDmvdIS93U" # Generated secret key (required)
+  error_reporting:
+    enabled: true # Opt-in for anonymized error/performance reporting
+  postgresql:
+    password: "Welcome" # Generated PostgreSQL password
+  # email:
+  #   # Optional: Configure global email for alerts and user recovery (add your SMTP details)
+  #   host: "smtp.example.com" # e.g., smtp.gmail.com
+  #   port: 587
+  #   username: "your-email@example.com"
+  #   password: "your-smtp-password"
+  #   use_tls: true # Or use_ssl: true if needed (not both)
+  #   use_ssl: false
+  #   timeout: 30
+  #   from: "Authentik <no-reply@init0xff.com>"
+
+  # Server (web UI and API) config
+server:
+  ingress:
+    enabled: true
+    ingressClassName: "traefik" # Matches your Traefik IngressClass
+    hosts:
+    - auth.init0xff.com # Your desired subdomain (must match your ALB wildcard *.init0xff.com)
+
+# Built-in PostgreSQL (for demo/testing; use external for production)
+postgresql:
+  enabled: true
+  auth:
+    password: "Welcome" # Must match authentik.postgresql.password above
+
+# Built-in Redis (for demo/testing; use external for production)
+redis:
+  enabled: true

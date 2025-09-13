@@ -1,0 +1,33 @@
+# Minimal Grafana config with Mimir/Loki data sources pre-configured.
+persistence:
+  enabled: true
+  type: pvc
+  storageClassName: gp3
+  size: 2Gi
+
+adminPassword: your-grafana-password # Replace with strong password.
+
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+    - name: Mimir
+      type: prometheus
+      access: proxy
+      url: http://mimir.observability.svc.cluster.local/prometheus
+      isDefault: true
+    - name: Loki
+      type: loki
+      access: proxy
+      url: http://loki.observability.svc.cluster.local
+
+service:
+  type: ClusterIP
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi

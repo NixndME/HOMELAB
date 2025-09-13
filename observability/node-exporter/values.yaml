@@ -1,0 +1,17 @@
+# Minimal Node Exporter for node-level metrics.
+service:
+  port: 9100
+  targetPort: 9100
+
+serviceMonitor:
+  enabled: true
+  labels:
+    release: agent
+
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi

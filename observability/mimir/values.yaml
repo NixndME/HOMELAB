@@ -1,0 +1,63 @@
+# Minimal Mimir in monolithic/single binary mode with S3 in ap-south-1.
+mimir:
+  mode: monolithic # Enforces single binary mode.
+  structuredConfig:
+    blocks_storage:
+      backend: s3
+      s3:
+        bucket_name: home-lab-eks-mimir-blocks
+        endpoint: s3.ap-south-1.amazonaws.com
+        region: ap-south-1
+    alertmanager_storage:
+      backend: s3
+      s3:
+        bucket_name: home-lab-eks-mimir-alerts
+        endpoint: s3.ap-south-1.amazonaws.com
+        region: ap-south-1
+    ruler_storage:
+      backend: s3
+      s3:
+        bucket_name: home-lab-eks-mimir-ruler
+        endpoint: s3.ap-south-1.amazonaws.com
+        region: ap-south-1
+
+singleBinary:
+  replicas: 1 # Single pod.
+  persistence:
+    enabled: false # Use S3.
+
+serviceAccount:
+  create: false # Use pre-created SA.
+  name: mimir-sa # Matches IRSA SA.
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::058264195463:role/home-lab-eks-mimir-s3-role
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 1Gi
+  requests:
+    cpu: 200m
+    memory: 512Mi
+
+# Disable distributed components for minimal setup.
+ingester:
+  enabled: false
+distributor:
+  enabled: false
+querier:
+  enabled: false
+query_frontend:
+  enabled: false
+store_gateway:
+  enabled: false
+ruler:
+  enabled: false
+compactor:
+  enabled: false
+alertmanager:
+  enabled: false
+overrides_exporter:
+  enabled: false
+minio:
+  enabled: false

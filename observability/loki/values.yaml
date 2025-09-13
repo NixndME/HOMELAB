@@ -1,0 +1,70 @@
+# Minimal Loki in SingleBinary mode with S3 in ap-south-1.
+deploymentMode: SingleBinary
+singleBinary:
+  replicas: 1
+  persistence:
+    enabled: false # Use S3 storage.
+
+loki:
+  auth_enabled: false # Disable for simplicity; enable in production.
+  commonConfig:
+    replication_factor: 1 # Required for single replica.
+  storage_config:
+    s3:
+      endpoint: s3.ap-south-1.amazonaws.com
+      bucket_name: home-lab-eks-loki
+      region: ap-south-1
+      s3forcepathstyle: false
+  schema_config:
+    configs:
+    - from: "2020-10-01"
+      store: tsdb
+      object_store: s3
+      schema: v13
+      index:
+        prefix: loki_index_
+        period: 24h
+  limits_config:
+    retention_period: 30d # Minimal retention.
+
+serviceAccount:
+  create: false
+  name: loki-sa
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::058264195463:role/home-lab-eks-loki-s3-role
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 1Gi
+  requests:
+    cpu: 200m
+    memory: 512Mi
+
+# Disable all other deployment modes and components.
+backend:
+  enabled: false
+read:
+  enabled: false
+write:
+  enabled: false
+ingester:
+  enabled: false
+querier:
+  enabled: false
+queryFrontend:
+  enabled: false
+queryScheduler:
+  enabled: false
+distributor:
+  enabled: false
+compactor:
+  enabled: false
+indexGateway:
+  enabled: false
+bloomCompactor:
+  enabled: false
+bloomGateway:
+  enabled: false
+minio:
+  enabled: false

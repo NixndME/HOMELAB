@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: immich-config
+  namespace: immich
+data:
+  DB_HOSTNAME: "immich-postgres-svc"
+  DB_PORT: "5432"
+  DB_DATABASE_NAME: "immich"
+  REDIS_HOSTNAME: "immich-redis-svc"
+  REDIS_PORT: "6379"
+  MACHINE_LEARNING_URL: "http://immich-ml-svc:3003"

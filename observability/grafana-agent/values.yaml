@@ -1,0 +1,53 @@
+# Grafana Agent in Flow mode for metrics/logs collection to Mimir/Loki.
+mode: flow
+
+agent:
+  configMap:
+    create: true
+  riverConfig: |
+    discovery.kubernetes "pods" {
+      role = "pod"
+      namespaces {
+        names = ["observability"]
+      }
+    }
+
+    prometheus.scrape "node_exporter" {
+      targets = discovery.kubernetes.pods.targets
+      forward_to = [prometheus.remote_write.mimir.receiver]
+      job_label = "node-exporter"
+    }
+
+    prometheus.scrape "kube_state_metrics" {
+      targets = discovery.kubernetes.pods.targets
+      forward_to = [prometheus.remote_write.mimir.receiver]
+      job_label = "kube-state-metrics"
+    }
+
+    prometheus.remote_write "mimir" {
+      endpoint {
+        url = "http://mimir.observability.svc.cluster.local/api/v1/push"
+      }
+    }
+
+    loki.source.kubernetes "pods" {
+      targets = discovery.kubernetes.pods.targets
+      forward_to = [loki.write.loki.receiver]
+    }
+
+    loki.write "loki" {
+      endpoint {
+        url = "http://loki.observability.svc.cluster.local/loki/api/v1/push"
+      }
+    }
+
+clusterRole:
+  create: true # For Kubernetes discovery.
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi

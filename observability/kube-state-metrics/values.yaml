@@ -1,0 +1,13 @@
+# Minimal Kube State Metrics for Kubernetes object metrics.
+serviceMonitor:
+  enabled: true
+  labels:
+    release: agent
+
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi

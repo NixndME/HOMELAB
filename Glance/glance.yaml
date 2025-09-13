@@ -1,5 +1,3 @@
-####
-
 # PersistentVolumeClaim for storing Glance configuration
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -142,30 +140,6 @@ data:
             feeds:
             - url: "https://www.reddit.com/r/cloudcomputing/search.rss?q=Morpheus+OR+VME+OR+HVM&restrict_sr=1&sort=new"
               title: "r/cloudcomputing Morpheus/VME/HVM"
-        - type: repository
-          title: "Morpheus GitHub Issues"
-          repository: "HewlettPackard/morpheus-go-sdk"
-          pull-requests-limit: 5
-          issues-limit: 5
-          commits-limit: -1
-        - type: repository
-          title: "Morpheus CLI Issues"
-          repository: "HewlettPackard/morpheus-cli"
-          pull-requests-limit: 5
-          issues-limit: 5
-          commits-limit: -1
-        - type: repository
-          title: "Morpheus Plugin Core Issues"
-          repository: "HewlettPackard/morpheus-plugin-core"
-          pull-requests-limit: 5
-          issues-limit: 5
-          commits-limit: -1
-        - type: repository
-          title: "Morpheus OpenAPI Issues"
-          repository: "HewlettPackard/morpheus-openapi"
-          pull-requests-limit: 5
-          issues-limit: 5
-          commits-limit: -1
         - type: rss
           title: "Morpheus Data & Related News"
           limit: 20
@@ -189,12 +163,6 @@ data:
             title: "HPE Blog"
       - size: small
         widgets:
-        - type: markets
-          markets:
-          - symbol: "SPY"
-            name: "S&P 500"
-          - symbol: "HPQ"
-            name: "HPE"
         - type: bookmarks
           groups:
           - title: "Key Morpheus Resources"
@@ -297,7 +265,7 @@ data:
               url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-96AE2ACD-5292-4498-9268-CEB1DAF75BD4.html&docLocale=en_US"
               icon: "mdi:cog-sync"
             - title: "Roles Overview"
-              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-81B4F7F1-22DE-4285-BD37-B5C4D03E0063&docLocale=en_US"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-81B4F7F1-22DE-4285-BD37-B5C4D03E0063.html&docLocale=en_US"
               icon: "mdi:shield-account"
             - title: "Role Creation & Permissions"
               url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-81B4F7F1-22DE-4285-BD37-B5C4D03E0063.html&docLocale=en_US"
