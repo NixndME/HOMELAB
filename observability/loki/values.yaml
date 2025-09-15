@@ -1,14 +1,15 @@
-# Minimal Loki in SingleBinary mode with S3 in ap-south-1.
+# observability/loki/values.yaml
 deploymentMode: SingleBinary
+
 singleBinary:
   replicas: 1
   persistence:
-    enabled: false # Use S3 storage.
+    enabled: false
 
 loki:
-  auth_enabled: false # Disable for simplicity; enable in production.
+  auth_enabled: false
   commonConfig:
-    replication_factor: 1 # Required for single replica.
+    replication_factor: 1
   storage_config:
     s3:
       endpoint: s3.ap-south-1.amazonaws.com
@@ -25,7 +26,7 @@ loki:
         prefix: loki_index_
         period: 24h
   limits_config:
-    retention_period: 30d # Minimal retention.
+    retention_period: 30d
 
 serviceAccount:
   create: false
@@ -33,15 +34,7 @@ serviceAccount:
   annotations:
     eks.amazonaws.com/role-arn: arn:aws:iam::058264195463:role/home-lab-eks-loki-s3-role
 
-resources:
-  limits:
-    cpu: 500m
-    memory: 1Gi
-  requests:
-    cpu: 200m
-    memory: 512Mi
-
-# Disable all other deployment modes and components.
+# Force-disable all distributed components
 backend:
   enabled: false
 read:

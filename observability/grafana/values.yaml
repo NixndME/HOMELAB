@@ -1,11 +1,11 @@
-# Minimal Grafana config with Mimir/Loki data sources pre-configured.
+# observability/grafana/values.yaml
 persistence:
   enabled: true
   type: pvc
   storageClassName: gp3
   size: 2Gi
 
-adminPassword: your-grafana-password # Replace with strong password.
+adminPassword: your-grafana-password
 
 datasources:
   datasources.yaml:
@@ -14,7 +14,8 @@ datasources:
     - name: Mimir
       type: prometheus
       access: proxy
-      url: http://mimir.observability.svc.cluster.local/prometheus
+      # If using the mimir-distributed chart (recommended): use the nginx service
+      url: http://mimir-nginx.observability.svc.cluster.local/prometheus
       isDefault: true
     - name: Loki
       type: loki
@@ -23,6 +24,16 @@ datasources:
 
 service:
   type: ClusterIP
+
+ingress:
+  enabled: true
+  ingressClassName: traefik
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+  hosts:
+  - grafana.init0xff.com
+  path: /
+  pathType: Prefix
 
 resources:
   limits:
