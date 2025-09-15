@@ -4,7 +4,7 @@ authentik:
   error_reporting:
     enabled: true # Opt-in for anonymized error/performance reporting
   postgresql:
-    password: "Welcome" # Generated PostgreSQL password
+    password: "XXXXXX" # Generated PostgreSQL password
   # email:
   #   # Optional: Configure global email for alerts and user recovery (add your SMTP details)
   #   host: "smtp.example.com" # e.g., smtp.gmail.com
@@ -21,14 +21,16 @@ server:
   ingress:
     enabled: true
     ingressClassName: "traefik" # Matches your Traefik IngressClass
+    annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: web
     hosts:
-    - auth.init0xff.com # Your desired subdomain (must match your ALB wildcard *.init0xff.com)
+    - auth.init0xff.com # Must match your ALB wildcard *.init0xff.com
 
 # Built-in PostgreSQL (for demo/testing; use external for production)
 postgresql:
   enabled: true
   auth:
-    password: "Welcome" # Must match authentik.postgresql.password above
+    password: "XXXXXXXX" # Must match authentik.postgresql.password above
 
 # Built-in Redis (for demo/testing; use external for production)
 redis:
