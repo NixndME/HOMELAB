@@ -1,6 +1,6 @@
-# Minimal Mimir in monolithic/single binary mode with S3 in ap-south-1.
+# observability/mimir/values.yaml
+# Minimal Mimir in monolithic/single binary mode with S3 in ap-south-1
 mimir:
-  mode: monolithic # Enforces single binary mode.
   structuredConfig:
     blocks_storage:
       backend: s3
@@ -21,26 +21,28 @@ mimir:
         endpoint: s3.ap-south-1.amazonaws.com
         region: ap-south-1
 
+# Use single binary mode (monolithic)
+deploymentMode: SingleBinary
+
 singleBinary:
-  replicas: 1 # Single pod.
+  replicas: 1
   persistence:
-    enabled: false # Use S3.
+    enabled: false # Use S3 instead
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 200m
+      memory: 512Mi
 
 serviceAccount:
-  create: false # Use pre-created SA.
-  name: mimir-sa # Matches IRSA SA.
+  create: false
+  name: mimir-sa
   annotations:
     eks.amazonaws.com/role-arn: arn:aws:iam::058264195463:role/home-lab-eks-mimir-s3-role
 
-resources:
-  limits:
-    cpu: 500m
-    memory: 1Gi
-  requests:
-    cpu: 200m
-    memory: 512Mi
-
-# Disable distributed components for minimal setup.
+# Disable distributed components for monolithic mode
 ingester:
   enabled: false
 distributor:

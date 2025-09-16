@@ -47,3 +47,63 @@ spec:
             name: argocd-server
             port:
               number: 80
+---
+
+
+---
+# Add Client Secret to argocd-secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-secret
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-secret
+    app.kubernetes.io/part-of: argocd
+type: Opaque
+data:
+  dex.authentik.clientSecret: ckd1NDNtOUg4YlVQUmxSSmlNRmFNRGxPZzdaTUxaRThtM3Z0OExvWVJwekREQzRRRUFNTWpoWGRsQzFVUjl1OFl5SnRrTmtMTmU1SGxURmJ3Q0c3NnlRSERaS3RJVUQ5VTd4bDZ3UkN6QnNXRW53cU8xREt1TFNJaHR4bDdkVXI=
+---
+# Configure ArgoCD to use Authentik via Dex
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  url: https://argo.init0xff.com
+  application.instanceLabelKey: argocd.argoproj.io/instance
+  dex.config: |
+    web:
+      http: 0.0.0.0:5556
+    connectors:
+    - config:
+        issuer: https://auth.init0xff.com/application/o/argo-cd/
+        clientID: mHdG3gXTvbe5VutmkZTergMacZWlCWbNh9IcpLIW
+        clientSecret: $dex.authentik.clientSecret
+        insecureEnableGroups: true
+        scopes:
+        - openid
+        - profile
+        - email
+        - groups
+      name: authentik
+      type: oidc
+      id: authentik
+---
+# Map Authentik groups to ArgoCD roles
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rbac-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-rbac-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  policy.csv: |
+    g, ArgoCD Admins, role:admin
+    g, ArgoCD Viewers, role:readonly

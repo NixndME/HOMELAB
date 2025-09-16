@@ -1,15 +1,26 @@
-# observability/loki/values.yaml
 deploymentMode: SingleBinary
-
 singleBinary:
   replicas: 1
   persistence:
-    enabled: false
-
+    enabled: true
+    accessModes:
+    - ReadWriteOnce
+    size: 10Gi
+simpleScalable:
+  replicas: 0
 loki:
   auth_enabled: false
   commonConfig:
     replication_factor: 1
+  storage:
+    type: s3
+    bucketNames:
+      chunks: home-lab-eks-loki
+      index: home-lab-eks-loki
+      ruler: home-lab-eks-loki
+    s3:
+      endpoint: s3.ap-south-1.amazonaws.com
+      region: ap-south-1
   storage_config:
     s3:
       endpoint: s3.ap-south-1.amazonaws.com
@@ -23,41 +34,15 @@ loki:
       object_store: s3
       schema: v13
       index:
-        prefix: loki_index_
+        prefix: lokiindex
         period: 24h
   limits_config:
     retention_period: 30d
-
+  memberlistConfig: {}
+  resultsCache:
+    enabled: false
 serviceAccount:
   create: false
   name: loki-sa
   annotations:
     eks.amazonaws.com/role-arn: arn:aws:iam::058264195463:role/home-lab-eks-loki-s3-role
-
-# Force-disable all distributed components
-backend:
-  enabled: false
-read:
-  enabled: false
-write:
-  enabled: false
-ingester:
-  enabled: false
-querier:
-  enabled: false
-queryFrontend:
-  enabled: false
-queryScheduler:
-  enabled: false
-distributor:
-  enabled: false
-compactor:
-  enabled: false
-indexGateway:
-  enabled: false
-bloomCompactor:
-  enabled: false
-bloomGateway:
-  enabled: false
-minio:
-  enabled: false

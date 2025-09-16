@@ -192,6 +192,7 @@ spec:
         - "--entrypoints.websecure.forwardedheaders.insecure=true"
         - "--log.level=ERROR"
         - "--accessLog.filePath=/var/log/traefik/access.log"
+        - "--providers.kubernetesingress.ingressendpoint.ip=127.0.0.1"
 ---
 apiVersion: v1
 kind: Service
