@@ -1,4 +1,3 @@
-# observability/grafana/values.yaml
 persistence:
   enabled: true
   type: pvc
@@ -11,16 +10,24 @@ datasources:
   datasources.yaml:
     apiVersion: 1
     datasources:
-    - name: Mimir
+    - name: Prometheus
       type: prometheus
       access: proxy
-      # If using the mimir-distributed chart (recommended): use the nginx service
-      url: http://mimir-nginx.observability.svc.cluster.local/prometheus
+      url: http://prometheus.lens-metrics.svc.cluster.local:80
       isDefault: true
+      basicAuth: false
+      editable: true
+      jsonData:
+        httpMethod: POST
+        timeInterval: 30s
     - name: Loki
       type: loki
       access: proxy
-      url: http://loki.observability.svc.cluster.local
+      url: http://loki.lens-metrics.svc.cluster.local:3100
+      basicAuth: false
+      editable: true
+      jsonData:
+        maxLines: 1000
 
 service:
   type: ClusterIP
@@ -42,3 +49,25 @@ resources:
   requests:
     cpu: 100m
     memory: 128Mi
+
+# Enhanced Grafana configuration
+grafana.ini:
+  analytics:
+    check_for_updates: false
+  log:
+    mode: console
+    level: info
+  paths:
+    data: /var/lib/grafana/data
+    logs: /var/log/grafana
+    plugins: /var/lib/grafana/plugins
+    provisioning: /etc/grafana/provisioning
+  server:
+    domain: grafana.init0xff.com
+    root_url: http://grafana.init0xff.com
+  users:
+    allow_sign_up: false
+    auto_assign_org: true
+    auto_assign_org_role: Viewer
+  auth.anonymous:
+    enabled: false

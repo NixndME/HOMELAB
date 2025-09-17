@@ -1,0 +1,1 @@
+helm install grafana grafana/grafana \                                          ok  11s  home-lab-eks.ap-south-1.eksctl.io-static kube  06:20:22 PM --namespace lens-metrics \ --values values.yaml

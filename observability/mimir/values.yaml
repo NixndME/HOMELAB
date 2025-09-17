@@ -30,11 +30,11 @@ singleBinary:
     enabled: false # Use S3 instead
   resources:
     limits:
-      cpu: 500m
-      memory: 1Gi
+      cpu: 300m
+      memory: 512Gi
     requests:
       cpu: 200m
-      memory: 512Mi
+      memory: 400Mi
 
 serviceAccount:
   create: false
