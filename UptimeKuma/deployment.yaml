@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: uptime-app
+  namespace: uptime
+  labels:
+    app: uptime
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: uptime
+  template:
+    metadata:
+      labels:
+        app: uptime
+    spec:
+      restartPolicy: Always
+      containers:
+      - name: uptime
+        image: louislam/uptime-kuma:latest
+        ports:
+        - containerPort: 3001
+          protocol: TCP
+        resources:
+          requests:
+            cpu: "200m"
+            memory: "150Mi"
+          limits:
+            cpu: "300m"
+            memory: "250Mi"
+        volumeMounts:
+        - name: uptime-vol
+          mountPath: /app/data
+      volumes:
+      - name: uptime-vol
+        persistentVolumeClaim:
+          claimName: uptime-pvc

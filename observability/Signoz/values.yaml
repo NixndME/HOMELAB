@@ -1,0 +1,5 @@
+global:
+  storageClass: gp3
+
+clickhouse:
+  installCustomStorageClass: true
