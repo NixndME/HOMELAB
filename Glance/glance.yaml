@@ -488,7 +488,7 @@ metadata:
   name: glance-deployment
   namespace: glance
 spec:
-  replicas: 1
+  replicas: 5
   selector:
     matchLabels:
       app: glance
