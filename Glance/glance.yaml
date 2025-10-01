@@ -81,19 +81,6 @@ data:
           first-day: monday
       - size: full
         widgets:
-        - type: releases
-          title: "Morpheus GitHub Releases"
-          repositories:
-          - "HewlettPackard/morpheus-go-sdk"
-          - "HewlettPackard/morpheus-cli"
-          - "HewlettPackard/morpheus-plugin-core"
-          - "HewlettPackard/morpheus-openapi"
-          - "HewlettPackard/helm-charts-morpheus"
-          - "HewlettPackard/morpheus-olvm-plugin"
-          - "HewlettPackard/morpheus-nutanix-prism-plugin"
-          limit: 10
-          collapse-after: 5
-          cache: 30m
         - type: videos
           title: "HPE Morpheus YouTube Videos"
           playlists:
@@ -102,65 +89,63 @@ data:
           limit: 20
           style: grid-cards
           cache: 30m
-        - type: group
-          widgets:
-          - type: rss
-            title: "r/sysadmin"
-            limit: 10
-            collapse-after: 5
-            style: horizontal-cards
-            cache: 30m
-            feeds:
-            - url: "https://www.reddit.com/r/sysadmin/search.rss?q=Morpheus+OR+VME+OR+HVM&restrict_sr=1&sort=new"
-              title: "r/sysadmin Morpheus/VME/HVM"
-          - type: rss
-            title: "r/devops"
-            limit: 10
-            collapse-after: 5
-            style: horizontal-cards
-            cache: 30m
-            feeds:
-            - url: "https://www.reddit.com/r/devops/search.rss?q=Morpheus+OR+VME+OR+HVM&restrict_sr=1&sort=new"
-              title: "r/devops Morpheus/VME/HVM"
-          - type: rss
-            title: "r/vmware"
-            limit: 10
-            collapse-after: 5
-            style: horizontal-cards
-            cache: 30m
-            feeds:
-            - url: "https://www.reddit.com/r/vmware/search.rss?q=Morpheus+OR+VME+OR+HVM&restrict_sr=1&sort=new"
-              title: "r/vmware Morpheus/VME/HVM"
-          - type: rss
-            title: "r/cloudcomputing"
-            limit: 10
-            collapse-after: 5
-            style: horizontal-cards
-            cache: 30m
-            feeds:
-            - url: "https://www.reddit.com/r/cloudcomputing/search.rss?q=Morpheus+OR+VME+OR+HVM&restrict_sr=1&sort=new"
-              title: "r/cloudcomputing Morpheus/VME/HVM"
         - type: rss
-          title: "Morpheus Data & Related News"
-          limit: 20
-          collapse-after: 10
-          style: horizontal-cards
+          title: "HPE Morpheus News & Updates"
+          limit: 15
+          collapse-after: 8
+          style: horizontal-cards-2
           cache: 30m
           feeds:
           - url: "https://news.google.com/rss/search?q=morpheus+data+from:hpe.com&hl=en-US&gl=US&ceid=US:en"
-            title: "Morpheus Data (HPE)"
+            title: "Morpheus Data"
           - url: "https://news.google.com/rss/search?q=VME+Virtual+Machine+Manager+for+Enterprise+Morpheus+from:hpe.com&hl=en-US&gl=US&ceid=US:en"
-            title: "VME News (HPE)"
+            title: "VME News"
           - url: "https://news.google.com/rss/search?q=HVM+cluster+Morpheus+from:hpe.com&hl=en-US&gl=US&ceid=US:en"
-            title: "HVM Cluster in Morpheus (HPE)"
+            title: "HVM Cluster"
           - url: "https://news.google.com/rss/search?q=MKS+Kubernetes+Morpheus+from:hpe.com&hl=en-US&gl=US&ceid=US:en"
-            title: "MKS Kubernetes in Morpheus (HPE)"
+            title: "MKS Kubernetes"
           - url: "https://www.hpe.com/us/en/newsroom/press-releases.html?view=rss"
             title: "HPE Newsroom"
           - url: "https://community.hpe.com/t5/hpe-morpheus-software/ct-p/hpe_morpheus_software?output=rss"
             title: "HPE Morpheus Community"
-          - url: "https://www.hpe.com/us/en/newsroom/blog.rss"
-            title: "HPE Blog"
+        - type: group
+          widgets:
+          - type: rss
+            title: "r/sysadmin"
+            limit: 12
+            collapse-after: 8
+            style: horizontal-cards-2
+            cache: 30m
+            feeds:
+            - url: "https://www.reddit.com/r/sysadmin/search.rss?q=Morpheus+OR+VME+OR+HVM&restrict_sr=1&sort=new"
+              title: "r/sysadmin"
+          - type: rss
+            title: "r/devops"
+            limit: 12
+            collapse-after: 8
+            style: horizontal-cards-2
+            cache: 30m
+            feeds:
+            - url: "https://www.reddit.com/r/devops/search.rss?q=Morpheus+OR+VME+OR+HVM&restrict_sr=1&sort=new"
+              title: "r/devops"
+          - type: rss
+            title: "r/vmware"
+            limit: 12
+            collapse-after: 8
+            style: horizontal-cards-2
+            cache: 30m
+            feeds:
+            - url: "https://www.reddit.com/r/vmware/search.rss?q=Morpheus+OR+VME+OR+HVM&restrict_sr=1&sort=new"
+              title: "r/vmware"
+          - type: rss
+            title: "r/cloudcomputing"
+            limit: 12
+            collapse-after: 8
+            style: horizontal-cards-2
+            cache: 30m
+            feeds:
+            - url: "https://www.reddit.com/r/cloudcomputing/search.rss?q=Morpheus+OR+VME+OR+HVM&restrict_sr=1&sort=new"
+              title: "r/cloudcomputing"
       - size: small
         widgets:
         - type: bookmarks
@@ -472,7 +457,7 @@ data:
               url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-C279B4B2-41AC-4F47-9D11-6142FA3E70DB.html&docLocale=en_US"
               icon: "mdi:label"
             - title: "Utilities & Advanced Features"
-              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-0336B7CB-78A8-4980-BF2F-663F5E1B0EF5.html&docLocale=en_US"
+              url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-0336B7CB-78A8-4980-BF2F-663F5E1B0F5.html&docLocale=en_US"
               icon: "mdi:toolbox"
             - title: "POC Evaluation Guide"
               url: "https://support.hpe.com/hpesc/public/docDisplay?docId=sd00006474en_us&page=GUID-3CA39221-7A9A-4C51-B56D-D5D1A69876FE.html&docLocale=en_US"
