@@ -145,12 +145,30 @@ install_antigravity() {
   mkdir -p "$HOME/.local/bin"
   ln -sf /opt/antigravity-ide/antigravity-ide "$HOME/.local/bin/antigravity-ide"
   rm -rf "$tmp"
-  echo "  Installed. Launch with: antigravity-ide  (ensure ~/.local/bin is in PATH)"
+
+  mkdir -p "$HOME/.local/share/applications"
+  local icon
+  icon=$(find /opt/antigravity-ide -maxdepth 4 -iname "*.png" 2>/dev/null | head -n1)
+  cat > "$HOME/.local/share/applications/antigravity-ide.desktop" <<DESKTOP
+[Desktop Entry]
+Type=Application
+Name=Antigravity IDE
+Comment=Google Antigravity - AI IDE
+Exec=$HOME/.local/bin/antigravity-ide %U
+Icon=${icon:-text-editor}
+Terminal=false
+Categories=Development;IDE;
+DESKTOP
+  command -v kbuildsycoca6 &>/dev/null && kbuildsycoca6 --noincremental &>/dev/null
+
+  echo "  Installed. Launch with: antigravity-ide  (ensure ~/.local/bin is in PATH), or find it in the app menu."
 }
 
 remove_antigravity() {
   sudo rm -rf /opt/antigravity-ide
   rm -f "$HOME/.local/bin/antigravity-ide"
+  rm -f "$HOME/.local/share/applications/antigravity-ide.desktop"
+  command -v kbuildsycoca6 &>/dev/null && kbuildsycoca6 --noincremental &>/dev/null
 }
 
 install_podman() {
