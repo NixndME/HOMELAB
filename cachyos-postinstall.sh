@@ -94,7 +94,7 @@ echo ""
 # ---------------------------------------------------------------------------
 
 # ---- Catalog: tag | description | method(pacman/aur/custom) | package ----
-TAGS=(claude-desktop antigravity opera obsidian freelens terraform kubectl helm ansible argocd k9s kubectx docker podman kind k3s firefox vlc)
+TAGS=(claude-desktop antigravity opera obsidian freelens terraform kubectl helm ansible argocd k9s kubectx podman podman-desktop docker-compat kind k3s teams outlook firefox vlc)
 DESCS=(
   "Claude Desktop [AUR]"
   "Antigravity IDE - Google AI IDE [tarball, replaces VS Code]"
@@ -108,26 +108,32 @@ DESCS=(
   "ArgoCD CLI [official]"
   "k9s - terminal K8s dashboard [official]"
   "kubectx / kubens [official]"
-  "Docker [official]"
   "Podman [official]"
+  "Podman Desktop - GUI [official]"
+  "Docker CLI compat: 'docker' -> podman [official, podman-docker]"
   "Kind - local K8s in a container [official]"
   "K3s [AUR]"
+  "Microsoft Teams [AUR, actively maintained]"
+  "Microsoft Outlook [AUR, PWA wrapper - low maintenance, verify still works]"
   "Firefox"
   "VLC"
 )
-METHODS=(aur custom aur pacman aur pacman pacman pacman pacman pacman pacman pacman pacman pacman pacman aur pacman pacman)
-PKGS=(claude-desktop antigravity opera obsidian freelens-bin terraform kubectl helm ansible argocd k9s kubectx docker podman kind k3s-bin firefox vlc)
+METHODS=(aur custom aur pacman aur pacman pacman pacman pacman pacman pacman pacman pacman pacman custom pacman aur aur aur pacman pacman)
+PKGS=(claude-desktop antigravity opera obsidian freelens-bin terraform kubectl helm ansible argocd k9s kubectx podman podman-desktop docker-compat kind k3s-bin teams-for-linux outlook-for-linux-bin firefox vlc)
 
 install_antigravity() {
   echo "  Resolving latest Antigravity IDE tarball URL..."
   local url
-  url=$(curl -fsSL --proto '=https' --proto-redir '=https' --compressed https://antigravity.google/download 2>/dev/null \
-        | grep -Eo 'https://[^" ]+/linux-x64/Antigravity IDE\.tar\.gz' | sort -u | head -n1)
+  url=$(curl -fsSL --compressed \
+        -A "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36" \
+        https://antigravity.google/download 2>/dev/null \
+        | grep -Eo 'https://[^"]+linux-x64[^"]*IDE[^"]*\.tar\.gz' | sort -u | head -n1)
   if [[ -z "$url" ]]; then
     echo "  Could not auto-resolve the URL (Google may have changed their page)."
     echo "  Download manually from: https://antigravity.google/download/linux"
     return 1
   fi
+  echo "  Found: $url"
   local tmp; tmp=$(mktemp -d)
   if ! curl -fsSL "$url" -o "$tmp/antigravity-ide.tar.gz"; then
     echo "  Download failed."; rm -rf "$tmp"; return 1
@@ -148,13 +154,30 @@ remove_antigravity() {
   rm -f "$HOME/.local/bin/antigravity-ide"
 }
 
+install_docker_compat() {
+  sudo pacman -S --needed --noconfirm podman-docker
+  systemctl --user enable --now podman.socket 2>/dev/null || true
+  echo "  'docker' command now maps to podman. Rootless docker-compatible socket enabled."
+}
+
+remove_docker_compat() {
+  systemctl --user disable --now podman.socket 2>/dev/null || true
+  sudo pacman -Rns --noconfirm podman-docker
+}
+
 is_installed() {
   local method="$1" pkg="$2"
-  if [[ "$method" == "custom" ]]; then
-    [[ -x "$HOME/.local/bin/antigravity-ide" ]]
-  else
-    pacman -Qi "$pkg" &>/dev/null
-  fi
+  case "$method" in
+    custom)
+      case "$pkg" in
+        antigravity)   [[ -x "$HOME/.local/bin/antigravity-ide" ]] ;;
+        docker-compat) pacman -Qi podman-docker &>/dev/null ;;
+      esac
+      ;;
+    *)
+      pacman -Qi "$pkg" &>/dev/null
+      ;;
+  esac
 }
 
 install_item() {
@@ -162,7 +185,12 @@ install_item() {
   case "$method" in
     pacman) sudo pacman -S --needed --noconfirm "$pkg" ;;
     aur)    paru -S --noconfirm "$pkg" ;;
-    custom) install_antigravity ;;
+    custom)
+      case "$pkg" in
+        antigravity)   install_antigravity ;;
+        docker-compat) install_docker_compat ;;
+      esac
+      ;;
   esac
 }
 
@@ -170,7 +198,12 @@ remove_item() {
   local method="$1" pkg="$2"
   case "$method" in
     pacman|aur) sudo pacman -Rns --noconfirm "$pkg" ;;
-    custom)     remove_antigravity ;;
+    custom)
+      case "$pkg" in
+        antigravity)   remove_antigravity ;;
+        docker-compat) remove_docker_compat ;;
+      esac
+      ;;
   esac
 }
 
@@ -189,10 +222,10 @@ done
 
 TMPFILE=$(mktemp)
 dialog --backtitle "CachyOS Setup" \
+  --separate-output \
   --title "Software selection (space=toggle, enter=apply, esc=skip)" \
   --checklist "Checked = install/keep. Unchecked = remove if currently installed." \
   23 78 18 "${ARGS[@]}" \
-  --separate-output \
   2> "$TMPFILE"
 STATUS=$?
 mapfile -t SELECTED < "$TMPFILE"
