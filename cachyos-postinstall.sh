@@ -94,7 +94,7 @@ echo ""
 # ---------------------------------------------------------------------------
 
 # ---- Catalog: tag | description | method(pacman/aur/custom) | package ----
-TAGS=(claude-desktop antigravity opera obsidian freelens terraform kubectl helm ansible argocd k9s kubectx podman podman-desktop docker-compat kind k3s teams outlook firefox vlc)
+TAGS=(claude-desktop antigravity opera obsidian freelens terraform kubectl helm ansible argocd k9s kubectx podman podman-desktop kind k3s teams outlook firefox vlc)
 DESCS=(
   "Claude Desktop [AUR]"
   "Antigravity IDE - Google AI IDE [tarball, replaces VS Code]"
@@ -108,9 +108,8 @@ DESCS=(
   "ArgoCD CLI [official]"
   "k9s - terminal K8s dashboard [official]"
   "kubectx / kubens [official]"
-  "Podman [official]"
+  "Podman (includes 'docker' command compat) [official]"
   "Podman Desktop - GUI [official]"
-  "Docker CLI compat: 'docker' -> podman [official, podman-docker]"
   "Kind - local K8s in a container [official]"
   "K3s [AUR]"
   "Microsoft Teams [AUR, actively maintained]"
@@ -118,8 +117,8 @@ DESCS=(
   "Firefox"
   "VLC"
 )
-METHODS=(aur custom aur pacman aur pacman pacman pacman pacman pacman pacman pacman pacman pacman custom pacman aur aur aur pacman pacman)
-PKGS=(claude-desktop antigravity opera obsidian freelens-bin terraform kubectl helm ansible argocd k9s kubectx podman podman-desktop docker-compat kind k3s-bin teams-for-linux outlook-for-linux-bin firefox vlc)
+METHODS=(aur custom aur pacman aur pacman pacman pacman pacman pacman pacman pacman custom pacman pacman aur aur aur pacman pacman)
+PKGS=(claude-desktop antigravity opera obsidian freelens-bin terraform kubectl helm ansible argocd k9s kubectx podman podman-desktop kind k3s-bin teams-for-linux outlook-for-linux-bin firefox vlc)
 
 install_antigravity() {
   echo "  Resolving latest Antigravity IDE tarball URL..."
@@ -154,15 +153,15 @@ remove_antigravity() {
   rm -f "$HOME/.local/bin/antigravity-ide"
 }
 
-install_docker_compat() {
-  sudo pacman -S --needed --noconfirm podman-docker
+install_podman() {
+  sudo pacman -S --needed --noconfirm podman podman-docker
   systemctl --user enable --now podman.socket 2>/dev/null || true
-  echo "  'docker' command now maps to podman. Rootless docker-compatible socket enabled."
+  echo "  Podman installed. 'docker' command now maps to podman."
 }
 
-remove_docker_compat() {
+remove_podman() {
   systemctl --user disable --now podman.socket 2>/dev/null || true
-  sudo pacman -Rns --noconfirm podman-docker
+  sudo pacman -Rns --noconfirm podman-docker podman
 }
 
 is_installed() {
@@ -170,8 +169,8 @@ is_installed() {
   case "$method" in
     custom)
       case "$pkg" in
-        antigravity)   [[ -x "$HOME/.local/bin/antigravity-ide" ]] ;;
-        docker-compat) pacman -Qi podman-docker &>/dev/null ;;
+        antigravity) [[ -x "$HOME/.local/bin/antigravity-ide" ]] ;;
+        podman)      pacman -Qi podman &>/dev/null && pacman -Qi podman-docker &>/dev/null ;;
       esac
       ;;
     *)
@@ -187,8 +186,8 @@ install_item() {
     aur)    paru -S --noconfirm "$pkg" ;;
     custom)
       case "$pkg" in
-        antigravity)   install_antigravity ;;
-        docker-compat) install_docker_compat ;;
+        antigravity) install_antigravity ;;
+        podman)      install_podman ;;
       esac
       ;;
   esac
@@ -200,8 +199,8 @@ remove_item() {
     pacman|aur) sudo pacman -Rns --noconfirm "$pkg" ;;
     custom)
       case "$pkg" in
-        antigravity)   remove_antigravity ;;
-        docker-compat) remove_docker_compat ;;
+        antigravity) remove_antigravity ;;
+        podman)      remove_podman ;;
       esac
       ;;
   esac
