@@ -94,10 +94,14 @@ echo ""
 # ---------------------------------------------------------------------------
 
 # ---- Catalog: tag | description | method(pacman/aur/custom) | package ----
-TAGS=(claude-desktop antigravity opera obsidian freelens terraform kubectl helm ansible argocd k9s kubectx podman podman-desktop kind k3s teams outlook firefox vlc)
+TAGS=(claude-desktop antigravity zed claude-code gemini-cli opencode opera obsidian freelens terraform kubectl helm ansible argocd k9s kubectx podman podman-desktop kind k3s teams outlook firefox vlc)
 DESCS=(
   "Claude Desktop [AUR]"
   "Antigravity IDE - Google AI IDE [tarball, replaces VS Code]"
+  "Zed - native Rust editor with ACP agent support [official]"
+  "Claude Code CLI [AUR, tracks official binary]"
+  "Gemini CLI [official]"
+  "OpenCode - model-agnostic AI agent (Claude/GPT/Gemini/local) [official]"
   "Opera browser [AUR]"
   "Obsidian notes [official]"
   "Freelens - Kubernetes IDE [AUR]"
@@ -117,8 +121,8 @@ DESCS=(
   "Firefox"
   "VLC"
 )
-METHODS=(aur custom aur pacman aur pacman pacman pacman pacman pacman pacman pacman custom pacman pacman aur aur aur pacman pacman)
-PKGS=(claude-desktop antigravity opera obsidian freelens-bin terraform kubectl helm ansible argocd k9s kubectx podman podman-desktop kind k3s-bin teams-for-linux outlook-for-linux-bin firefox vlc)
+METHODS=(aur custom pacman aur pacman pacman aur pacman aur pacman pacman pacman pacman pacman pacman pacman custom pacman pacman aur aur aur pacman pacman)
+PKGS=(claude-desktop antigravity zed claude-code gemini-cli opencode opera obsidian freelens-bin terraform kubectl helm ansible argocd k9s kubectx podman podman-desktop kind k3s-bin teams-for-linux outlook-for-linux-bin firefox vlc)
 
 install_antigravity() {
   echo "  Resolving latest Antigravity IDE tarball URL..."
