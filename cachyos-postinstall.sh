@@ -82,6 +82,19 @@ fi
 echo "==> [8/9] Dev toolchain: Python, Go, jq, yq"
 sudo pacman -S --needed --noconfirm python go jq yq
 
+echo "==> Flatpak + Flathub (needed for Bambu Studio, avoids AUR webkit2gtk source builds)"
+sudo pacman -S --needed --noconfirm flatpak
+flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+
+mkdir -p "$HOME/.config/environment.d"
+if [[ ! -f "$HOME/.config/environment.d/flatpak-xdg.conf" ]]; then
+  cat > "$HOME/.config/environment.d/flatpak-xdg.conf" <<'ENVCONF'
+XDG_DATA_DIRS=/var/lib/flatpak/exports/share:/usr/local/share/:/usr/share/
+ENVCONF
+  echo "  XDG_DATA_DIRS configured so Flatpak apps show up in the KDE app menu."
+  echo "  NOTE: takes effect on next login/reboot only (systemd environment.d is read once per session)."
+fi
+
 echo "==> [9/9] fish shell: LIBVIRT_DEFAULT_URI"
 if command -v fish &>/dev/null; then
   fish -c "set -Ux LIBVIRT_DEFAULT_URI qemu:///system"
@@ -122,12 +135,12 @@ DESCS=(
   "Microsoft Teams [AUR, actively maintained]"
   "Microsoft Outlook [AUR, PWA wrapper - low maintenance, verify still works]"
   "USB Imager - USB/SD image flasher, GUI [AUR]"
-  "Bambu Studio - 3D printer slicer, P2S-ready [AUR]"
+  "Bambu Studio - 3D printer slicer, P2S-ready [Flatpak, avoids AUR webkit2gtk build]"
   "Firefox"
   "VLC"
 )
-METHODS=(aur custom pacman aur pacman pacman aur pacman aur pacman pacman pacman pacman pacman pacman pacman custom pacman pacman aur aur aur aur aur pacman pacman)
-PKGS=(claude-desktop antigravity zed claude-code gemini-cli opencode opera obsidian freelens-bin terraform kubectl helm ansible argocd k9s kubectx podman podman-desktop kind k3s-bin teams-for-linux outlook-for-linux-bin usbimager bambu-studio-bin firefox vlc)
+METHODS=(aur custom pacman aur pacman pacman aur pacman aur pacman pacman pacman pacman pacman pacman pacman custom pacman pacman aur aur aur aur flatpak pacman pacman)
+PKGS=(claude-desktop antigravity zed claude-code gemini-cli opencode opera obsidian freelens-bin terraform kubectl helm ansible argocd k9s kubectx podman podman-desktop kind k3s-bin teams-for-linux outlook-for-linux-bin usbimager com.bambulab.BambuStudio firefox vlc)
 
 install_antigravity() {
   echo "  Resolving latest Antigravity IDE tarball URL..."
@@ -200,6 +213,9 @@ is_installed() {
         podman)      pacman -Qi podman &>/dev/null && pacman -Qi podman-docker &>/dev/null ;;
       esac
       ;;
+    flatpak)
+      flatpak info "$pkg" &>/dev/null
+      ;;
     *)
       pacman -Qi "$pkg" &>/dev/null
       ;;
@@ -209,8 +225,9 @@ is_installed() {
 install_item() {
   local method="$1" pkg="$2"
   case "$method" in
-    pacman) sudo pacman -S --needed --noconfirm "$pkg" ;;
-    aur)    paru -S --noconfirm "$pkg" ;;
+    pacman)  sudo pacman -S --needed --noconfirm "$pkg" ;;
+    aur)     paru -S --noconfirm "$pkg" ;;
+    flatpak) flatpak install -y --noninteractive flathub "$pkg" ;;
     custom)
       case "$pkg" in
         antigravity) install_antigravity ;;
@@ -224,6 +241,7 @@ remove_item() {
   local method="$1" pkg="$2"
   case "$method" in
     pacman|aur) sudo pacman -Rns --noconfirm "$pkg" ;;
+    flatpak)    flatpak uninstall -y --noninteractive "$pkg" ;;
     custom)
       case "$pkg" in
         antigravity) remove_antigravity ;;
