@@ -18,13 +18,13 @@ set -uo pipefail   # no -e: one failed step shouldn't abort the whole run
 # PART 1: FOUNDATION
 # ---------------------------------------------------------------------------
 
-echo "==> [1/8] Baseline snapshot"
+echo "==> [1/9] Baseline snapshot"
 sudo snapper -c root create -d "setup run $(date +%F_%H%M)"
 
-echo "==> [2/8] Full system update"
+echo "==> [2/9] Full system update"
 sudo pacman -Syu --noconfirm
 
-echo "==> [3/8] Bootstrap: paru, dialog, curl, openssl"
+echo "==> [3/9] Bootstrap: paru, dialog, curl, openssl"
 if ! command -v paru &>/dev/null; then
   sudo pacman -S --needed --noconfirm base-devel git
   git clone https://aur.archlinux.org/paru.git /tmp/paru-build
@@ -33,11 +33,11 @@ if ! command -v paru &>/dev/null; then
 fi
 sudo pacman -S --needed --noconfirm dialog curl openssl kconfig
 
-echo "==> [4/8] SSH server (remote terminal access)"
+echo "==> [4/9] SSH server (remote terminal access)"
 sudo pacman -S --needed --noconfirm openssh
 sudo systemctl enable --now sshd.service
 
-echo "==> [5/8] RDP server — KDE native KRDP (macOS: use 'Windows App' RDP client)"
+echo "==> [5/9] RDP server — KDE native KRDP (macOS: use 'Windows App' RDP client)"
 sudo pacman -S --needed --noconfirm krdp
 mkdir -p "$HOME/.local/share/krdpserver"
 CERT_PATH="$HOME/.local/share/krdpserver/krdp.crt"
@@ -51,7 +51,7 @@ kwriteconfig6 --file krdpserverrc --group General --key SystemUserEnabled true
 systemctl --user enable --now app-org.kde.krdpserver.service
 echo "  If this doesn't connect: System Settings -> Remote Desktop -> enable RDP there instead (GUI is the documented fallback)."
 
-echo "==> [6/8] Firewall: open SSH (22) and RDP (3389)"
+echo "==> [6/9] Firewall: open SSH (22) and RDP (3389)"
 if command -v ufw &>/dev/null && sudo ufw status | grep -q "Status: active"; then
   sudo ufw allow 22/tcp
   sudo ufw allow 3389/tcp
@@ -60,7 +60,7 @@ else
   echo "  ufw inactive/not installed — skip (open these ports manually once ufw is enabled)"
 fi
 
-echo "==> [7/8] Virtualization / KVM lab stack"
+echo "==> [7/9] Virtualization / KVM lab stack"
 sudo pacman -S --needed --noconfirm \
   qemu-full libvirt virt-manager virt-viewer edk2-ovmf \
   dnsmasq bridge-utils vde2 openbsd-netcat ebtables iptables-nft swtpm
@@ -79,7 +79,10 @@ if command -v ufw &>/dev/null && sudo ufw status | grep -q "Status: active"; the
   sudo ufw reload
 fi
 
-echo "==> [8/8] fish shell: LIBVIRT_DEFAULT_URI"
+echo "==> [8/9] Dev toolchain: Python, Go, jq, yq"
+sudo pacman -S --needed --noconfirm python go jq yq
+
+echo "==> [9/9] fish shell: LIBVIRT_DEFAULT_URI"
 if command -v fish &>/dev/null; then
   fish -c "set -Ux LIBVIRT_DEFAULT_URI qemu:///system"
 fi
@@ -94,7 +97,7 @@ echo ""
 # ---------------------------------------------------------------------------
 
 # ---- Catalog: tag | description | method(pacman/aur/custom) | package ----
-TAGS=(claude-desktop antigravity zed claude-code gemini-cli opencode opera obsidian freelens terraform kubectl helm ansible argocd k9s kubectx podman podman-desktop kind k3s teams outlook firefox vlc)
+TAGS=(claude-desktop antigravity zed claude-code gemini-cli opencode opera obsidian freelens terraform kubectl helm ansible argocd k9s kubectx podman podman-desktop kind k3s teams outlook usbimager bambu-studio firefox vlc)
 DESCS=(
   "Claude Desktop [AUR]"
   "Antigravity IDE - Google AI IDE [tarball, replaces VS Code]"
@@ -118,11 +121,13 @@ DESCS=(
   "K3s [AUR]"
   "Microsoft Teams [AUR, actively maintained]"
   "Microsoft Outlook [AUR, PWA wrapper - low maintenance, verify still works]"
+  "USB Imager - USB/SD image flasher, GUI [AUR]"
+  "Bambu Studio - 3D printer slicer, P2S-ready [AUR]"
   "Firefox"
   "VLC"
 )
-METHODS=(aur custom pacman aur pacman pacman aur pacman aur pacman pacman pacman pacman pacman pacman pacman custom pacman pacman aur aur aur pacman pacman)
-PKGS=(claude-desktop antigravity zed claude-code gemini-cli opencode opera obsidian freelens-bin terraform kubectl helm ansible argocd k9s kubectx podman podman-desktop kind k3s-bin teams-for-linux outlook-for-linux-bin firefox vlc)
+METHODS=(aur custom pacman aur pacman pacman aur pacman aur pacman pacman pacman pacman pacman pacman pacman custom pacman pacman aur aur aur aur aur pacman pacman)
+PKGS=(claude-desktop antigravity zed claude-code gemini-cli opencode opera obsidian freelens-bin terraform kubectl helm ansible argocd k9s kubectx podman podman-desktop kind k3s-bin teams-for-linux outlook-for-linux-bin usbimager bambu-studio-bin firefox vlc)
 
 install_antigravity() {
   echo "  Resolving latest Antigravity IDE tarball URL..."
