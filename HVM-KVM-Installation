@@ -1,0 +1,352 @@
+#!/usr/bin/env bash
+# Creates hvm01/02/03 unattended: no installer, static IP, apt upgrade on first boot.
+# Uses Ubuntu Server 24.04 cloud image + cloud-init (NoCloud), not the Desktop ISO.
+# Re-runnable: destroys/rebuilds existing VMs of the same name, skips re-download if image present.
+# Run as your normal user (uses sudo internally).
+
+set -uo pipefail   # no -e: one VM's verification failure shouldn't abort the others
+
+# ============ EDIT THIS BEFORE RUNNING ============
+ADMIN_PASSWORD="PASSWORDxx"
+# ====================================================
+
+ISO_DIR="$HOME/Desktop/Sync/ISO"
+CLOUD_IMG="$ISO_DIR/noble-server-cloudimg-amd64.img"
+IMAGES_DIR="/var/lib/libvirt/images"
+GATEWAY="192.168.122.1"
+DNS="192.168.122.1"
+DISK_SIZE="60G"
+DATA_DISK_SIZE="500G"
+SSH_KEY="$HOME/.ssh/id_ed25519"
+SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 -o BatchMode=yes -o LogLevel=ERROR"
+REQUIRED_PKGS=(vim curl openssh-server qemu-guest-agent multipath-tools chrony)
+
+# ---- Node definitions: name ip mac_mgmt mac_storage mac_overlay storage_ip mac_compute ----
+NODES=(
+  "hvm01.nixndme.com 192.168.122.201 52:54:00:aa:01:01 52:54:00:aa:02:01 52:54:00:aa:03:01 192.168.122.211 52:54:00:aa:04:01"
+  "hvm02.nixndme.com 192.168.122.202 52:54:00:aa:01:02 52:54:00:aa:02:02 52:54:00:aa:03:02 192.168.122.212 52:54:00:aa:04:02"
+  "hvm03.nixndme.com 192.168.122.203 52:54:00:aa:01:03 52:54:00:aa:02:03 52:54:00:aa:03:03 192.168.122.213 52:54:00:aa:04:03"
+)
+
+if [[ "$ADMIN_PASSWORD" == *"CHANGEME"* ]]; then
+  echo "Edit ADMIN_PASSWORD at the top of this script first. Aborting."
+  exit 1
+fi
+
+echo "==> Tools: xorriso (seed ISO builder)"
+sudo pacman -S --needed --noconfirm libisoburn openssh
+
+echo "==> SSH keypair for automated verification and node-to-node access (generated once, reused)"
+if [[ ! -f "$SSH_KEY" ]]; then
+  ssh-keygen -t ed25519 -N "" -f "$SSH_KEY" -C "hvm-lab-key" -q
+fi
+SSH_PUBKEY=$(cat "${SSH_KEY}.pub")
+SSH_PRIVKEY=$(cat "$SSH_KEY")
+
+echo "==> Ubuntu 24.04 Server cloud image"
+mkdir -p "$ISO_DIR"
+if [[ -f "$CLOUD_IMG" ]] && [[ $(stat -c%s "$CLOUD_IMG" 2>/dev/null || echo 0) -gt 104857600 ]]; then
+  echo "  Found existing image ($(du -h "$CLOUD_IMG" | cut -f1)) — skipping download."
+else
+  echo "  Not found (or incomplete) — downloading..."
+  wget -O "$CLOUD_IMG" https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img
+fi
+
+# ---- Build /etc/hosts block shared by all 3 nodes ----
+build_hosts_block() {
+  for node in "${NODES[@]}"; do
+    read -r n_name n_ip _ <<< "$node"
+    echo "$n_ip $n_name ${n_name%%.*}"
+  done
+}
+HOSTS_BLOCK=$(build_hosts_block)
+
+declare -A RESULT_STATUS RESULT_MGMT_IP RESULT_MGMT_IF RESULT_STORAGE_IF RESULT_OVERLAY_IF RESULT_COMPUTE_IF RESULT_DISK RESULT_DATA_DISK RESULT_PKGS RESULT_PEER_SSH
+
+cleanup_existing_vm() {
+  local name="$1"
+  if sudo virsh -c qemu:///system dominfo "$name" &>/dev/null; then
+    echo "  Existing VM '$name' found — destroying and removing before rebuild"
+    sudo virsh -c qemu:///system destroy "$name" &>/dev/null || true
+    sudo virsh -c qemu:///system undefine "$name" --remove-all-storage &>/dev/null || true
+  fi
+  sudo rm -f "$IMAGES_DIR/$name-seed.iso"
+}
+
+create_hvm_vm() {
+  local name="$1" ip="$2" mac_mgmt="$3" mac_storage="$4" mac_overlay="$5" storage_ip="$6" mac_compute="$7"
+  local workdir
+  workdir=$(mktemp -d)
+
+  echo ""
+  echo "==> Building $name ($ip)"
+  cleanup_existing_vm "$name"
+
+  cat > "$workdir/meta-data" <<EOF
+instance-id: $name-$(date +%s)
+local-hostname: $name
+EOF
+
+  cat > "$workdir/user-data" <<EOF
+#cloud-config
+hostname: $name
+fqdn: $name
+manage_etc_hosts: true
+users:
+  - name: nixndme
+    groups: sudo
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    lock_passwd: false
+    ssh_authorized_keys:
+      - $SSH_PUBKEY
+chpasswd:
+  expire: false
+  users:
+    - name: nixndme
+      password: $ADMIN_PASSWORD
+      type: text
+ssh_pwauth: true
+package_update: true
+package_upgrade: true
+packages:
+  - vim
+  - curl
+  - openssh-server
+  - qemu-guest-agent
+  - multipath-tools
+  - chrony
+write_files:
+  - path: /etc/multipath.conf
+    content: |
+      defaults {
+          user_friendly_names yes
+          find_multipaths yes
+      }
+    owner: root:root
+    permissions: '0644'
+  - path: /home/nixndme/.ssh/id_ed25519
+    content: |
+$(echo "$SSH_PRIVKEY" | sed 's/^/      /')
+    permissions: '0600'
+  - path: /home/nixndme/.ssh/id_ed25519.pub
+    content: |
+      $SSH_PUBKEY
+    permissions: '0644'
+  - path: /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
+    content: |
+      network: {config: disabled}
+    owner: root:root
+    permissions: '0644'
+  - path: /etc/hvm-cluster-hosts
+    content: |
+$(echo "$HOSTS_BLOCK" | sed 's/^/      /')
+    owner: root:root
+    permissions: '0644'
+runcmd:
+  - mkdir -p /home/nixndme/.ssh
+  - chown -R nixndme:nixndme /home/nixndme/.ssh
+  - chmod 700 /home/nixndme/.ssh
+  - chmod 600 /home/nixndme/.ssh/id_ed25519
+  - chmod 644 /home/nixndme/.ssh/id_ed25519.pub
+  - systemctl enable --now qemu-guest-agent
+  - systemctl enable --now ssh
+  - systemctl enable --now multipathd
+  - systemctl enable --now chrony
+  - cat /etc/hvm-cluster-hosts >> /etc/hosts
+EOF
+
+  cat > "$workdir/network-config" <<EOF
+version: 2
+ethernets:
+  enp1s0:
+    dhcp4: false
+    addresses: [$ip/24]
+    routes:
+      - to: default
+        via: $GATEWAY
+    nameservers:
+      addresses: [$DNS]
+  enp2s0:
+    dhcp4: false
+    addresses: [$storage_ip/24]
+  enp3s0:
+    dhcp4: false
+    optional: true
+  enp4s0:
+    dhcp4: false
+    optional: true
+EOF
+
+  sudo xorriso -as genisoimage -output "$IMAGES_DIR/$name-seed.iso" \
+    -volid cidata -joliet -rock \
+    "$workdir/user-data" "$workdir/meta-data" "$workdir/network-config"
+  rm -rf "$workdir"
+
+  sudo cp "$CLOUD_IMG" "$IMAGES_DIR/$name.qcow2"
+  sudo qemu-img resize "$IMAGES_DIR/$name.qcow2" "$DISK_SIZE"
+
+  echo "  Creating dedicated data disk ($DATA_DISK_SIZE, sparse) for HVM/Ceph — separate from the OS disk"
+  sudo qemu-img create -f qcow2 "$IMAGES_DIR/$name-data.qcow2" "$DATA_DISK_SIZE"
+
+  sudo virt-install --name "$name" \
+    --vcpus 4 --memory 8192 \
+    --disk path="$IMAGES_DIR/$name.qcow2",format=qcow2,bus=virtio,boot.order=1 \
+    --disk path="$IMAGES_DIR/$name-data.qcow2",format=qcow2,bus=virtio,target.dev=vdb \
+    --disk path="$IMAGES_DIR/$name-seed.iso",device=cdrom \
+    --network network=default,mac="$mac_mgmt",model=virtio \
+    --network network=default,mac="$mac_storage",model=virtio \
+    --network network=default,mac="$mac_overlay",model=virtio \
+    --network network=default,mac="$mac_compute",model=virtio \
+    --os-variant ubuntu24.04 \
+    --import --noautoconsole
+}
+
+wait_for_ssh() {
+  local ip="$1" max_attempts=60 attempt=0
+  echo "  Waiting for SSH on $ip..."
+  while ! ssh $SSH_OPTS -i "$SSH_KEY" "nixndme@$ip" true &>/dev/null; do
+    attempt=$((attempt+1))
+    if [[ $attempt -ge $max_attempts ]]; then
+      echo "  Timed out waiting for SSH."
+      return 1
+    fi
+    sleep 5
+  done
+  return 0
+}
+
+# Find which interface currently holds a given MAC, on a given guest
+iface_for_mac() {
+  local ip="$1" mac="$2"
+  ssh $SSH_OPTS -i "$SSH_KEY" "nixndme@$ip" \
+    "ip -o link show | grep -i '$mac' | awk -F': ' '{print \$2}' | cut -d'@' -f1"
+}
+
+verify_vm() {
+  local name="$1" ip="$2" mac_mgmt="$3" mac_storage="$4" mac_overlay="$5" expected_storage_ip="$6" mac_compute="$7"
+
+  if ! wait_for_ssh "$ip"; then
+    RESULT_STATUS[$name]="UNREACHABLE"
+    RESULT_MGMT_IP[$name]="?"; RESULT_MGMT_IF[$name]="?"
+    RESULT_STORAGE_IF[$name]="?"; RESULT_OVERLAY_IF[$name]="?"; RESULT_COMPUTE_IF[$name]="?"
+    RESULT_DISK[$name]="?"; RESULT_DATA_DISK[$name]="?"; RESULT_PKGS[$name]="?"; RESULT_PEER_SSH[$name]="?"
+    return
+  fi
+
+  echo "  Waiting for cloud-init to finish (package installs, upgrade)..."
+  if ! ssh $SSH_OPTS -i "$SSH_KEY" "nixndme@$ip" "sudo cloud-init status --wait" &>/dev/null; then
+    echo "  WARNING: cloud-init reported an error on $name. Check manually: ssh nixndme@$ip 'sudo cloud-init status --long'"
+  fi
+
+  local installed_count
+  installed_count=$(ssh $SSH_OPTS -i "$SSH_KEY" "nixndme@$ip" \
+    "dpkg -s ${REQUIRED_PKGS[*]} 2>/dev/null | grep -c '^Status: install ok installed'")
+  RESULT_PKGS[$name]="${installed_count}/${#REQUIRED_PKGS[@]}"
+
+  local mgmt_if storage_if overlay_if compute_if
+  mgmt_if=$(iface_for_mac "$ip" "$mac_mgmt")
+  storage_if=$(iface_for_mac "$ip" "$mac_storage")
+  overlay_if=$(iface_for_mac "$ip" "$mac_overlay")
+  compute_if=$(iface_for_mac "$ip" "$mac_compute")
+
+  local actual_ip
+  actual_ip=$(ssh $SSH_OPTS -i "$SSH_KEY" "nixndme@$ip" \
+    "ip -4 -o addr show '$mgmt_if' | awk '{print \$4}' | cut -d/ -f1")
+
+  local actual_storage_ip
+  actual_storage_ip=$(ssh $SSH_OPTS -i "$SSH_KEY" "nixndme@$ip" \
+    "ip -4 -o addr show '$storage_if' | awk '{print \$4}' | cut -d/ -f1")
+  if [[ "$actual_storage_ip" != "$expected_storage_ip" ]]; then
+    echo "  WARNING: storage interface ($storage_if) has no/wrong IPv4 — Morpheus's Ceph bootstrap reads this directly and will fail if empty."
+  fi
+
+  RESULT_MGMT_IP[$name]="$actual_ip"
+  RESULT_MGMT_IF[$name]="$mgmt_if"
+  RESULT_STORAGE_IF[$name]="$storage_if"
+  RESULT_OVERLAY_IF[$name]="$overlay_if"
+  RESULT_COMPUTE_IF[$name]="$compute_if"
+
+  local root_disk
+  root_disk=$(ssh $SSH_OPTS -i "$SSH_KEY" "nixndme@$ip" \
+    "lsblk -no pkname \$(findmnt -n -o SOURCE /) 2>/dev/null")
+  [[ -n "$root_disk" ]] && root_disk="/dev/${root_disk}" || root_disk="unknown"
+  RESULT_DISK[$name]="$root_disk"
+
+  local data_disk
+  data_disk=$(ssh $SSH_OPTS -i "$SSH_KEY" "nixndme@$ip" \
+    "lsblk -ndo NAME | grep -v \"\$(basename $root_disk)\" | grep '^vd' | head -n1")
+  [[ -n "$data_disk" ]] && data_disk="/dev/${data_disk}" || data_disk="NOT FOUND"
+  RESULT_DATA_DISK[$name]="$data_disk"
+
+  if [[ "$actual_ip" == "$ip" && "$installed_count" == "${#REQUIRED_PKGS[@]}" && -n "$storage_if" && -n "$overlay_if" ]]; then
+    RESULT_STATUS[$name]="OK"
+  else
+    RESULT_STATUS[$name]="CHECK_NEEDED"
+  fi
+}
+
+# Check node-to-node SSH once all 3 are up (hvm01 -> hvm02, hvm01 -> hvm03)
+verify_peer_ssh() {
+  local from_ip="$1"
+  shift
+  local ok=0 total=0
+  for target_ip in "$@"; do
+    total=$((total+1))
+    if ssh $SSH_OPTS -i "$SSH_KEY" "nixndme@$from_ip" \
+        "ssh $SSH_OPTS -i ~/.ssh/id_ed25519 nixndme@$target_ip true" &>/dev/null; then
+      ok=$((ok+1))
+    fi
+  done
+  echo "${ok}/${total}"
+}
+
+# ---- Build all 3 ----
+for node in "${NODES[@]}"; do
+  read -r n_name n_ip n_mgmt n_storage n_overlay n_storage_ip n_compute <<< "$node"
+  create_hvm_vm "$n_name" "$n_ip" "$n_mgmt" "$n_storage" "$n_overlay" "$n_storage_ip" "$n_compute"
+done
+
+# ---- Verify all 3 ----
+echo ""
+echo "==> Verifying all 3 (waits for cloud-init to fully finish on each, may take several minutes)..."
+for node in "${NODES[@]}"; do
+  read -r n_name n_ip n_mgmt n_storage n_overlay n_storage_ip n_compute <<< "$node"
+  verify_vm "$n_name" "$n_ip" "$n_mgmt" "$n_storage" "$n_overlay" "$n_storage_ip" "$n_compute"
+done
+
+echo ""
+echo "==> Checking node-to-node SSH..."
+IPS=()
+for node in "${NODES[@]}"; do read -r _ n_ip _ <<< "$node"; IPS+=("$n_ip"); done
+for node in "${NODES[@]}"; do
+  read -r n_name n_ip _ <<< "$node"
+  others=()
+  for ip in "${IPS[@]}"; do [[ "$ip" != "$n_ip" ]] && others+=("$ip"); done
+  RESULT_PEER_SSH[$n_name]=$(verify_peer_ssh "$n_ip" "${others[@]}")
+done
+
+# ---- Summary ----
+echo ""
+echo "=========================================================================================="
+echo " HVM NODE BUILD SUMMARY"
+echo "=========================================================================================="
+for node in "${NODES[@]}"; do
+  read -r n_name n_ip n_mgmt n_storage n_overlay n_storage_ip <<< "$node"
+  echo ""
+  echo "--- $n_name ---"
+  echo "  Status:              ${RESULT_STATUS[$n_name]}"
+  echo "  Management:          ${RESULT_MGMT_IF[$n_name]}  ->  ${RESULT_MGMT_IP[$n_name]}  (use this in Morpheus 'Management Net Interface')"
+  echo "  Storage:             ${RESULT_STORAGE_IF[$n_name]}  ->  ${n_storage_ip}  (use this in Morpheus 'Storage Net Interface' — Morpheus reads this IP directly, it must be pre-assigned)"
+  echo "  Overlay:             ${RESULT_OVERLAY_IF[$n_name]}  (use this in Morpheus 'Overlay Net Interface' at cluster level)"
+  echo "  Compute:             ${RESULT_COMPUTE_IF[$n_name]}  (dedicated NIC for per-network Overlay/VXLAN when creating Networks — keeps it off the Storage NIC)"
+  echo "  Root disk:           ${RESULT_DISK[$n_name]}  (OS disk — do NOT use as Morpheus 'Data Device')"
+  echo "  Data disk:           ${RESULT_DATA_DISK[$n_name]}  (use this in Morpheus 'Data Device')"
+  echo "  Packages installed:  ${RESULT_PKGS[$n_name]}  (${REQUIRED_PKGS[*]})"
+  echo "  SSH to other nodes:  ${RESULT_PEER_SSH[$n_name]}"
+done
+echo ""
+echo "=========================================================================================="
+echo "SSH in manually anytime:  ssh -i $SSH_KEY nixndme@192.168.122.201  (and .202, .203)"
+echo "Cross-node /etc/hosts entries were added on all 3 (each node can resolve the other two by name)."
+echo "chrony (time sync) enabled on all 3 — matters for corosync/pacemaker quorum stability."
