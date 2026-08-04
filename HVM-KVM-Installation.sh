@@ -7,7 +7,7 @@
 set -uo pipefail   # no -e: one VM's verification failure shouldn't abort the others
 
 # ============ EDIT THIS BEFORE RUNNING ============
-ADMIN_PASSWORD="PASSWORDxx"
+ADMIN_PASSWORD="CHANGEME_SET_A_REAL_PASSWORD"
 # ====================================================
 
 ISO_DIR="$HOME/Desktop/Sync/ISO"
@@ -234,9 +234,21 @@ verify_vm() {
     return
   fi
 
-  echo "  Waiting for cloud-init to finish (package installs, upgrade)..."
-  if ! ssh $SSH_OPTS -i "$SSH_KEY" "nixndme@$ip" "sudo cloud-init status --wait" &>/dev/null; then
+  echo "  Waiting for cloud-init on $name (live output below)..."
+  ssh $SSH_OPTS -i "$SSH_KEY" "nixndme@$ip" \
+    "sudo tail -n 0 -f /var/log/cloud-init-output.log" 2>/dev/null | sed -u "s/^/    [$name] /" &
+  local tail_pid=$!
+
+  local cloud_init_ok=0
+  ssh $SSH_OPTS -i "$SSH_KEY" "nixndme@$ip" "sudo cloud-init status --wait" &>/dev/null || cloud_init_ok=1
+
+  kill "$tail_pid" 2>/dev/null
+  wait "$tail_pid" 2>/dev/null
+
+  if [[ $cloud_init_ok -ne 0 ]]; then
     echo "  WARNING: cloud-init reported an error on $name. Check manually: ssh nixndme@$ip 'sudo cloud-init status --long'"
+  else
+    echo "  [$name] cloud-init finished successfully."
   fi
 
   local installed_count
