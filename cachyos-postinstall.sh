@@ -62,9 +62,10 @@ fi
 
 echo "==> [7/9] Virtualization / KVM lab stack"
 sudo pacman -S --needed --noconfirm \
-  qemu-full libvirt virt-manager virt-viewer edk2-ovmf \
+  qemu-full qemu-img libvirt virt-manager virt-viewer edk2-ovmf \
   dnsmasq bridge-utils vde2 openbsd-netcat ebtables iptables-nft swtpm
 sudo systemctl enable --now libvirtd.service
+sudo systemctl restart libvirtd.service
 sudo usermod -aG libvirt,kvm "$USER"
 sudo virsh net-autostart default || true
 sudo virsh net-start default || true
@@ -110,7 +111,7 @@ echo ""
 # ---------------------------------------------------------------------------
 
 # ---- Catalog: tag | description | method(pacman/aur/custom) | package ----
-TAGS=(claude-desktop antigravity zed claude-code gemini-cli opencode opera obsidian freelens terraform kubectl helm ansible argocd k9s kubectx podman podman-desktop kind k3s teams outlook usbimager bambu-studio firefox vlc)
+TAGS=(claude-desktop antigravity zed claude-code gemini-cli opencode opera obsidian freelens terraform kubectl helm ansible argocd k9s kubectx podman podman-desktop kind k3s teams outlook usbimager bambu-studio beeper zen-browser github-cli vocalinux firefox vlc)
 DESCS=(
   "Claude Desktop [AUR]"
   "Antigravity IDE - Google AI IDE [tarball, replaces VS Code]"
@@ -136,11 +137,15 @@ DESCS=(
   "Microsoft Outlook [AUR, PWA wrapper - low maintenance, verify still works]"
   "USB Imager - USB/SD image flasher, GUI [AUR]"
   "Bambu Studio - 3D printer slicer, P2S-ready [Flatpak, avoids AUR webkit2gtk build]"
+  "Beeper - unified chat (WhatsApp/Telegram/Signal/iMessage/etc) [AUR]"
+  "Zen Browser - Firefox-based, privacy-focused [AUR, prebuilt binary]"
+  "GitHub CLI ('gh') [official]"
+  "Vocalinux - 100% offline voice dictation, Vulkan GPU accel [AUR, maintained by upstream author]"
   "Firefox"
   "VLC"
 )
-METHODS=(aur custom pacman aur pacman pacman aur pacman aur pacman pacman pacman pacman pacman pacman pacman custom pacman pacman aur aur aur aur flatpak pacman pacman)
-PKGS=(claude-desktop antigravity zed claude-code gemini-cli opencode opera obsidian freelens-bin terraform kubectl helm ansible argocd k9s kubectx podman podman-desktop kind k3s-bin teams-for-linux outlook-for-linux-bin usbimager com.bambulab.BambuStudio firefox vlc)
+METHODS=(aur custom pacman aur pacman pacman aur pacman aur pacman pacman pacman pacman pacman pacman pacman custom pacman pacman aur aur aur aur flatpak aur aur pacman aur pacman pacman)
+PKGS=(claude-desktop antigravity zed claude-code gemini-cli opencode opera obsidian freelens-bin terraform kubectl helm ansible argocd k9s kubectx podman podman-desktop kind k3s-bin teams-for-linux outlook-for-linux-bin usbimager com.bambulab.BambuStudio beeper-v4-bin zen-browser-bin github-cli vocalinux firefox vlc)
 
 install_antigravity() {
   echo "  Resolving latest Antigravity IDE tarball URL..."
