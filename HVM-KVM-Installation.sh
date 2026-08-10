@@ -57,7 +57,11 @@ IMAGES_DIR="/var/lib/libvirt/images"
 CLOUD_IMG_LIBVIRT="$IMAGES_DIR/noble-server-cloudimg-amd64.img"
 
 VCPUS=4
-MEMORY_MB=8192
+# 14GB, not the earlier 8GB: HPE's own docs confirm Ceph converged storage needs a
+# 4GB minimum PER DISK, on top of OS/OVS overhead (~2GB) - the old 8GB size left only
+# ~2GB free, which is what caused nested HKS guest VMs to get OOM-killed. 14GB leaves
+# ~8GB free per host for nested HKS control-plane/worker nodes.
+MEMORY_MB=14336
 DISK_SIZE="60G"
 DATA_DISK_SIZE="500G"
 
