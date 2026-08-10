@@ -64,8 +64,32 @@ echo "==> [7/9] Virtualization / KVM lab stack"
 sudo pacman -S --needed --noconfirm \
   qemu-full qemu-img libvirt virt-manager virt-viewer edk2-ovmf \
   dnsmasq bridge-utils vde2 openbsd-netcat ebtables iptables-nft swtpm
+
+if ! command -v qemu-img &>/dev/null; then
+  echo "  ERROR: qemu-img still not on PATH after install. Check: pacman -Qi qemu-img"
+  exit 1
+fi
+echo "  qemu-img confirmed: $(command -v qemu-img)"
+
+# libvirtd caches its qemu-img/capability detection at daemon startup. A plain
+# `restart` doesn't always force a clean re-probe (this is a well-known bug class,
+# not Arch-specific - same symptom reported on NixOS, Guix, MX Linux etc. whenever
+# libvirtd started before qemu-img existed, or its stale on-disk capability cache
+# survives a restart). Force a genuinely clean state: stop, clear the cache, start.
+sudo systemctl stop libvirtd.service
+sudo rm -rf /var/cache/libvirt/qemu/capabilities/*
+sleep 1
 sudo systemctl enable --now libvirtd.service
-sudo systemctl restart libvirtd.service
+
+# Verify libvirtd actually sees qemu-img now, not just that the binary exists -
+# these are different things, and this is the actual failure mode to catch.
+sleep 2
+if ! sudo virsh -c qemu:///system capabilities &>/dev/null; then
+  echo "  ERROR: libvirtd did not come back up cleanly. Check: sudo systemctl status libvirtd"
+  exit 1
+fi
+echo "  libvirtd confirmed responsive with qemu-img capability re-probed."
+
 sudo usermod -aG libvirt,kvm "$USER"
 sudo virsh net-autostart default || true
 sudo virsh net-start default || true
@@ -114,7 +138,7 @@ echo ""
 TAGS=(claude-desktop antigravity zed claude-code gemini-cli opencode opera obsidian freelens terraform kubectl helm ansible argocd k9s kubectx podman podman-desktop kind k3s teams outlook usbimager bambu-studio beeper zen-browser github-cli vocalinux firefox vlc)
 DESCS=(
   "Claude Desktop [AUR]"
-  "Antigravity IDE - Google AI IDE [tarball, replaces VS Code]"
+  "Antigravity IDE - Google AI IDE, VS Code fork, Gemini 3.1 Pro built in [AUR, proper package]"
   "Zed - native Rust editor with ACP agent support [official]"
   "Claude Code CLI [AUR, tracks official binary]"
   "Gemini CLI [official]"
@@ -144,59 +168,8 @@ DESCS=(
   "Firefox"
   "VLC"
 )
-METHODS=(aur custom pacman aur pacman pacman aur pacman aur pacman pacman pacman pacman pacman pacman pacman custom pacman pacman aur aur aur aur flatpak aur aur pacman aur pacman pacman)
-PKGS=(claude-desktop antigravity zed claude-code gemini-cli opencode opera obsidian freelens-bin terraform kubectl helm ansible argocd k9s kubectx podman podman-desktop kind k3s-bin teams-for-linux outlook-for-linux-bin usbimager com.bambulab.BambuStudio beeper-v4-bin zen-browser-bin github-cli vocalinux firefox vlc)
-
-install_antigravity() {
-  echo "  Resolving latest Antigravity IDE tarball URL..."
-  local url
-  url=$(curl -fsSL --compressed \
-        -A "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36" \
-        https://antigravity.google/download 2>/dev/null \
-        | grep -Eo 'https://[^"]+linux-x64[^"]*IDE[^"]*\.tar\.gz' | sort -u | head -n1)
-  if [[ -z "$url" ]]; then
-    echo "  Could not auto-resolve the URL (Google may have changed their page)."
-    echo "  Download manually from: https://antigravity.google/download/linux"
-    return 1
-  fi
-  echo "  Found: $url"
-  local tmp; tmp=$(mktemp -d)
-  if ! curl -fsSL "$url" -o "$tmp/antigravity-ide.tar.gz"; then
-    echo "  Download failed."; rm -rf "$tmp"; return 1
-  fi
-  sudo rm -rf /opt/antigravity-ide
-  sudo mkdir -p /opt/antigravity-ide
-  sudo tar -xzf "$tmp/antigravity-ide.tar.gz" -C /opt/antigravity-ide --strip-components=1
-  sudo chown root:root /opt/antigravity-ide/chrome-sandbox
-  sudo chmod 4755 /opt/antigravity-ide/chrome-sandbox
-  mkdir -p "$HOME/.local/bin"
-  ln -sf /opt/antigravity-ide/antigravity-ide "$HOME/.local/bin/antigravity-ide"
-  rm -rf "$tmp"
-
-  mkdir -p "$HOME/.local/share/applications"
-  local icon
-  icon=$(find /opt/antigravity-ide -maxdepth 4 -iname "*.png" 2>/dev/null | head -n1)
-  cat > "$HOME/.local/share/applications/antigravity-ide.desktop" <<DESKTOP
-[Desktop Entry]
-Type=Application
-Name=Antigravity IDE
-Comment=Google Antigravity - AI IDE
-Exec=$HOME/.local/bin/antigravity-ide %U
-Icon=${icon:-text-editor}
-Terminal=false
-Categories=Development;IDE;
-DESKTOP
-  command -v kbuildsycoca6 &>/dev/null && kbuildsycoca6 --noincremental &>/dev/null
-
-  echo "  Installed. Launch with: antigravity-ide  (ensure ~/.local/bin is in PATH), or find it in the app menu."
-}
-
-remove_antigravity() {
-  sudo rm -rf /opt/antigravity-ide
-  rm -f "$HOME/.local/bin/antigravity-ide"
-  rm -f "$HOME/.local/share/applications/antigravity-ide.desktop"
-  command -v kbuildsycoca6 &>/dev/null && kbuildsycoca6 --noincremental &>/dev/null
-}
+METHODS=(aur aur pacman aur pacman pacman aur pacman aur pacman pacman pacman pacman pacman pacman pacman custom pacman pacman aur aur aur aur flatpak aur aur pacman aur pacman pacman)
+PKGS=(claude-desktop antigravity-ide zed claude-code gemini-cli opencode opera obsidian freelens-bin terraform kubectl helm ansible argocd k9s kubectx podman podman-desktop kind k3s-bin teams-for-linux outlook-for-linux-bin usbimager com.bambulab.BambuStudio beeper-v4-bin zen-browser-bin github-cli vocalinux firefox vlc)
 
 install_podman() {
   sudo pacman -S --needed --noconfirm podman podman-docker
@@ -214,7 +187,6 @@ is_installed() {
   case "$method" in
     custom)
       case "$pkg" in
-        antigravity) [[ -x "$HOME/.local/bin/antigravity-ide" ]] ;;
         podman)      pacman -Qi podman &>/dev/null && pacman -Qi podman-docker &>/dev/null ;;
       esac
       ;;
@@ -235,7 +207,6 @@ install_item() {
     flatpak) flatpak install -y --noninteractive flathub "$pkg" ;;
     custom)
       case "$pkg" in
-        antigravity) install_antigravity ;;
         podman)      install_podman ;;
       esac
       ;;
@@ -249,7 +220,6 @@ remove_item() {
     flatpak)    flatpak uninstall -y --noninteractive "$pkg" ;;
     custom)
       case "$pkg" in
-        antigravity) remove_antigravity ;;
         podman)      remove_podman ;;
       esac
       ;;
