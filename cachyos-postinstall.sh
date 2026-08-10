@@ -63,7 +63,7 @@ fi
 echo "==> [7/9] Virtualization / KVM lab stack"
 sudo pacman -S --needed --noconfirm \
   qemu-full qemu-img libvirt virt-manager virt-viewer edk2-ovmf \
-  dnsmasq bridge-utils vde2 openbsd-netcat ebtables iptables-nft swtpm
+  dnsmasq vde2 openbsd-netcat ebtables iptables-nft swtpm
 
 if ! command -v qemu-img &>/dev/null; then
   echo "  ERROR: qemu-img still not on PATH after install. Check: pacman -Qi qemu-img"
