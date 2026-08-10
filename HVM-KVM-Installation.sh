@@ -5,8 +5,11 @@
 #
 # NETWORK ARCHITECTURE: Management runs on libvirt's "default" network (same one
 # Morpheus's own appliance uses) - required so Morpheus can actually reach these hosts
-# for SSH/orchestration. Storage/Overlay/Compute are dedicated isolated networks (no
-# Morpheus-reachability needed - only peer-to-peer between HVM nodes themselves).
+# for SSH/orchestration. Storage/Overlay are dedicated isolated networks (no
+# Morpheus-reachability needed - only peer-to-peer between HVM nodes). Compute is on
+# the SAME network as Management - it hosts actual tenant workloads (VMs, HKS nodes)
+# that need real reachability to Morpheus and the internet, not just infra-internal
+# traffic - still gets its own dedicated NIC for logical/OVS-level separation though.
 # If you already added a UFW rule for virbr0 earlier (for the default network), it
 # already covers Management here too - no new rule needed for that part.
 
@@ -59,25 +62,29 @@ DISK_SIZE="60G"
 DATA_DISK_SIZE="500G"
 
 # Dedicated libvirt networks (created if missing). Mgmt is NAT (internet + host access);
-# storage/overlay/compute are isolated bridges - no DHCP, no forward, we set static IPs
+# storage/overlay are isolated bridges - no DHCP, no forward, we set static IPs
 # ourselves in each guest. Nodes still reach each other fine (same bridge = same L2
 # segment); the HOST just has no route onto the isolated ones, which is fine since the
 # script only ever talks to guests via their management IP.
 NET_MGMT="default"   # Morpheus's appliance lives here (192.168.122.0/24) - management
                      # MUST be reachable from Morpheus for SSH/orchestration, so it goes
-                     # on the SAME network, not a separate isolated one. Storage/Overlay/
-                     # Compute don't need Morpheus-reachability - only peer-to-peer between
-                     # HVM nodes - so those stay on their own dedicated isolated networks.
+                     # on the SAME network, not a separate isolated one.
 NET_STORAGE="hvm-storage"
 NET_OVERLAY="hvm-overlay"
-NET_COMPUTE="hvm-compute"
+# Compute ALSO goes on "default", not an isolated network - corrected after finding
+# tenant VMs provisioned onto Compute couldn't reach Morpheus at all (curl to port 443
+# timing out repeatedly during cloud-init/agent install). Compute is fundamentally
+# different from Storage/Overlay: it hosts actual routable workloads (tenant VMs, HKS
+# nodes) that need real connectivity to Morpheus and the internet, not just
+# infra-internal peer traffic between HVM hosts. Still gets its own dedicated NIC for
+# genuine logical/OVS-level separation - just attached to the same routed host bridge.
+NET_COMPUTE="default"
 # Explicit short bridge names: Linux caps interface names at 15 chars, and
 # "virbr-hvm-storage" (17) etc. exceed that - this is what caused
 # "Numerical result out of range" (a disguised ENAMETOOLONG) previously.
 declare -A NET_BRIDGE=(
   [$NET_STORAGE]="vbr-store"
   [$NET_OVERLAY]="vbr-ovly"
-  [$NET_COMPUTE]="vbr-cmpt"
 )
 
 # Management uses libvirt's pre-existing "default" network/subnet - same one Morpheus's
@@ -306,7 +313,6 @@ else
 fi
 ensure_libvirt_network "$NET_STORAGE" "isolated" || NET_SETUP_OK=false
 ensure_libvirt_network "$NET_OVERLAY" "isolated" || NET_SETUP_OK=false
-ensure_libvirt_network "$NET_COMPUTE" "isolated" || NET_SETUP_OK=false
 if [[ "$NET_SETUP_OK" != true ]]; then
   echo "${ICON_FAIL} One or more networks failed to come up. Aborting before attempting VM builds."
   exit 1
@@ -693,7 +699,7 @@ for node in "${NODES[@]}"; do
   echo "  ├─ Management   ${RESULT_MGMT_IF[$n_name]:-?} → ${RESULT_MGMT_IP[$n_name]:-?}  ${C_DIM}(Morpheus 'Management Net Interface')${C_RESET}"
   echo "  ├─ Storage      ${RESULT_STORAGE_IF[$n_name]:-?} → ${n_storage_ip}  ${C_DIM}(Morpheus 'Storage Net Interface')${C_RESET}"
   echo "  ├─ Overlay      ${RESULT_OVERLAY_IF[$n_name]:-?}  ${C_DIM}(Morpheus 'Overlay Net Interface')${C_RESET}"
-  echo "  ├─ Compute      ${RESULT_COMPUTE_IF[$n_name]:-?}  ${C_DIM}(dedicated NIC, keeps VXLAN off Storage)${C_RESET}"
+  echo "  ├─ Compute      ${RESULT_COMPUTE_IF[$n_name]:-?}  ${C_DIM}(dedicated NIC, same routed network as Management - reachable for tenant VMs/HKS)${C_RESET}"
   echo "  ├─ Root disk    ${RESULT_DISK[$n_name]:-?}  ${C_DIM}(OS - do NOT use as Data Device)${C_RESET}"
   echo "  ├─ Data disk    ${RESULT_DATA_DISK[$n_name]:-?}  ${C_DIM}(use as Morpheus 'Data Device')${C_RESET}"
   echo "  ├─ Packages     ${RESULT_PKGS[$n_name]:-?}"
