@@ -80,7 +80,7 @@ echo ""
 # ---------------------------------------------------------------------------
 
 # ---- Catalog: tag | description | method(pacman/aur/custom/flatpak) | package ----
-TAGS=(virt-stack claude-desktop antigravity claude-code gemini-cli opencode opera obsidian freelens terraform kubectl helm ansible argocd k9s kubectx podman podman-desktop kind k3s teams outlook usbimager bambu-studio beeper zen-browser github-cli openwhispr firefox vlc)
+TAGS=(virt-stack claude-desktop antigravity claude-code gemini-cli opencode opera obsidian freelens terraform kubectl helm ansible argocd k9s kubectx podman podman-desktop kind k3s teams outlook usbimager bambu-studio beeper zen-browser github-cli openwhispr firefox vlc gemini-desktop)
 DESCS=(
   "Virtualization: virt-manager + QEMU/KVM + libvirt [custom - full lab stack, not pre-installed on EndeavourOS the way it is on CachyOS. Installs ONCE when checked, never re-runs automatically.]"
   "Claude Desktop [AUR]"
@@ -112,9 +112,10 @@ DESCS=(
   "OpenWhispr - voice dictation, optional cloud fallback (BYOK) [AUR]"
   "Firefox"
   "VLC"
+  "Gemini Desktop - unofficial Electron wrapper around the Gemini web app [AUR, -git source build, no pre-built -bin variant found]"
 )
-METHODS=(custom aur aur aur pacman pacman aur pacman aur pacman pacman pacman pacman pacman pacman pacman custom pacman pacman aur aur aur aur flatpak aur aur pacman custom pacman pacman)
-PKGS=(virt-stack claude-desktop antigravity-ide claude-code gemini-cli opencode opera obsidian freelens-bin terraform kubectl helm ansible argocd k9s kubectx podman podman-desktop kind k3s-bin teams-for-linux outlook-for-linux-bin usbimager com.bambulab.BambuStudio beeper-v4-bin zen-browser-bin github-cli openwhispr firefox vlc)
+METHODS=(custom aur aur aur pacman pacman aur pacman aur pacman pacman pacman pacman pacman pacman pacman custom pacman pacman aur aur aur aur flatpak aur aur pacman custom pacman pacman aur)
+PKGS=(virt-stack claude-desktop antigravity-ide claude-code gemini-cli opencode opera obsidian freelens-bin terraform kubectl helm ansible argocd k9s kubectx podman podman-desktop kind k3s-bin teams-for-linux outlook-for-linux-bin usbimager com.bambulab.BambuStudio beeper-v4-bin zen-browser-bin github-cli openwhispr firefox vlc gemini-desktop-git)
 
 # =====================================================================
 #  Custom install functions
