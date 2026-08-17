@@ -75,7 +75,7 @@ run_diagnose() {
     done
   else
     echo -e "\n--- all tagged OVS ports ---" >> "$OUT"
-    command -v ovs-vsctl &>/dev/null && ovs-vsctl --format=csv --no-headings --columns=name,tag list Port 2>/dev/null | awk -F, '$2!=""' >> "$OUT"
+    command -v ovs-vsctl &>/dev/null && ovs-vsctl --format=csv --no-headings --columns=name,tag list Port 2>/dev/null | awk -F, '$2!="" && $2!="[]"' >> "$OUT"
     echo -e "\n--- all 802.1q sub-interfaces ---" >> "$OUT"
     ip -d link show | grep -B2 "vlan" >> "$OUT" 2>&1
   fi
@@ -291,7 +291,7 @@ run_verify() {
         [[ -n "$MATCH" ]] && pass "VLAN $v present on a port" || fail "VLAN $v not found"
       done
     else
-      FOUND=$(ovs-vsctl --format=csv --no-headings --columns=name,tag list Port 2>/dev/null | awk -F, '$2!=""')
+      FOUND=$(ovs-vsctl --format=csv --no-headings --columns=name,tag list Port 2>/dev/null | awk -F, '$2!="" && $2!="[]"')
       log "$FOUND"
       if [[ -n "$FOUND" ]]; then
         info "tagged ports found: $(echo "$FOUND" | wc -l), see evidence"
@@ -336,16 +336,18 @@ run_verify() {
   log "\n=== STORAGE INTERFACE (should stay outside OVS) ==="
   if [[ -z "$STORAGE_IF" ]]; then
     DEFAULT_IF=$(ip route show default 2>/dev/null | awk '{print $5}' | head -1)
+    BRIDGES=$(ovs-vsctl list-br 2>/dev/null)
     OVS_PORTS=""
-    for br in $(ovs-vsctl list-br 2>/dev/null); do
+    for br in $BRIDGES; do
       OVS_PORTS="$OVS_PORTS $(ovs-vsctl list-ports "$br" 2>/dev/null)"
     done
+    OVS_PORTS="$OVS_PORTS $BRIDGES"
     OVS_PORTS=$(echo "$OVS_PORTS" | tr ' ' '\n' | sort -u)
     CANDIDATES=""
     for ifc in $(ip -br addr show 2>/dev/null | awk '$1!="lo"{print $1}'); do
       [[ "$ifc" == "$DEFAULT_IF" ]] && continue
       echo "$OVS_PORTS" | grep -qx "$ifc" && continue
-      HASIP=$(ip -br addr show "$ifc" 2>/dev/null | awk '{print $3}')
+      HASIP=$(ip -4 -br addr show "$ifc" 2>/dev/null | awk '{print $3}')
       [[ -n "$HASIP" ]] && CANDIDATES="$CANDIDATES $ifc"
     done
     CANDIDATES=$(echo "$CANDIDATES" | xargs)
@@ -353,7 +355,7 @@ run_verify() {
       STORAGE_IF="$CANDIDATES"
       log "[auto-detected single storage candidate: $STORAGE_IF]"
     elif [[ -n "$CANDIDATES" ]]; then
-      log "candidates (has IP, outside OVS, not default route): $CANDIDATES"
+      log "candidates (has IPv4, outside OVS, not default route): $CANDIDATES"
       info "multiple storage candidates found, set STORAGE_IF to confirm one"
     else
       skip "storage interface check (no candidates found)"
