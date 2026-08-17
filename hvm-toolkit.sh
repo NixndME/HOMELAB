@@ -268,11 +268,16 @@ run_verify() {
     fi
 
     if command -v ovs-vsctl &>/dev/null; then
-      ACTUAL=$(ovs-vsctl port-to-br "$BOND" 2>&1)
-      log "port-to-br $BOND: $ACTUAL"
+      ACTUAL=$(ovs-vsctl port-to-br "$BOND" 2>/dev/null)
+      BOND_RC=$?
+      log "port-to-br $BOND: $([[ $BOND_RC -eq 0 ]] && echo "$ACTUAL" || echo "not on any bridge")"
       if [[ -n "$EXPECT" ]]; then
-        [[ "$ACTUAL" == "$EXPECT" ]] && pass "$BOND on expected bridge ($EXPECT)" || fail "$BOND on '$ACTUAL', expected '$EXPECT'"
-      elif [[ "$ACTUAL" != *"no bridge"* && "$ACTUAL" != *"error"* ]]; then
+        if [[ $BOND_RC -eq 0 && "$ACTUAL" == "$EXPECT" ]]; then
+          pass "$BOND on expected bridge ($EXPECT)"
+        else
+          fail "$BOND on '${ACTUAL:-none}', expected '$EXPECT'"
+        fi
+      elif [[ $BOND_RC -eq 0 && -n "$ACTUAL" ]]; then
         info "$BOND currently on bridge: $ACTUAL"
       else
         info "$BOND not attached to any bridge"
@@ -363,11 +368,12 @@ run_verify() {
   fi
   if [[ -n "$STORAGE_IF" ]]; then
     log "$(ip -br addr show "$STORAGE_IF" 2>&1)"
-    INBRIDGE=$(ovs-vsctl port-to-br "$STORAGE_IF" 2>&1)
-    if [[ "$INBRIDGE" == *"no bridge"* || "$INBRIDGE" == *"error"* ]]; then
-      pass "storage interface ($STORAGE_IF) outside OVS"
-    else
+    INBRIDGE=$(ovs-vsctl port-to-br "$STORAGE_IF" 2>/dev/null)
+    STOR_RC=$?
+    if [[ $STOR_RC -eq 0 && -n "$INBRIDGE" ]]; then
       fail "storage interface ($STORAGE_IF) found inside OVS bridge '$INBRIDGE'"
+    else
+      pass "storage interface ($STORAGE_IF) outside OVS"
     fi
   fi
 
