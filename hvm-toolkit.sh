@@ -101,9 +101,37 @@ run_diagnose() {
   run_cmd "hosts" cat /etc/hosts
 
   section "REACHABILITY"
+  if [[ -z "$PEER_HOST_IPS" && -f /etc/corosync/corosync.conf ]]; then
+    MY_IPS=$(hostname -I 2>/dev/null)
+    NODES=$(grep -oE 'ring0_addr:\s*[0-9.]+' /etc/corosync/corosync.conf 2>/dev/null | awk '{print $2}')
+    FOUND=""
+    for n in $NODES; do echo "$MY_IPS" | grep -qw "$n" || FOUND="$FOUND $n"; done
+    PEER_HOST_IPS=$(echo "$FOUND" | xargs)
+    [[ -n "$PEER_HOST_IPS" ]] && echo -e "\n[auto-detected peers from corosync.conf: $PEER_HOST_IPS]" >> "$OUT"
+  fi
+
   if [[ -z "$MORPHEUS_MANAGER_IP" ]]; then
     MORPHEUS_MANAGER_IP=$(ss -tn state established '( dport = :443 )' 2>/dev/null | grep -oE '[0-9]{1,3}(\.[0-9]{1,3}){3}:443' | cut -d: -f1 | head -1)
-    [[ -n "$MORPHEUS_MANAGER_IP" ]] && echo -e "\n[auto-detected manager from active :443 connection: $MORPHEUS_MANAGER_IP]" >> "$OUT"
+    if [[ -n "$MORPHEUS_MANAGER_IP" ]]; then
+      echo -e "\n[auto-detected manager from active :443 connection: $MORPHEUS_MANAGER_IP]" >> "$OUT"
+    else
+      DEF_IF=$(ip route show default 2>/dev/null | awk '{print $5}' | head -1)
+      GW_IP=$(ip route show default 2>/dev/null | awk '{print $3}' | head -1)
+      if [[ -n "$DEF_IF" ]]; then
+        NEIGHS=$(ip neigh show dev "$DEF_IF" 2>/dev/null | awk '$NF ~ /REACHABLE|STALE|DELAY|PERMANENT/ {print $1}')
+        MGR_CANDIDATES=""
+        for n in $NEIGHS; do
+          [[ "$n" == "$GW_IP" ]] && continue
+          echo "$PEER_HOST_IPS" | grep -qw "$n" && continue
+          MGR_CANDIDATES="$MGR_CANDIDATES $n"
+        done
+        MGR_CANDIDATES=$(echo "$MGR_CANDIDATES" | xargs)
+        if [[ -n "$MGR_CANDIDATES" ]]; then
+          echo -e "\n[manager candidates via ARP on $DEF_IF, excluding gateway $GW_IP and known peers: $MGR_CANDIDATES]" >> "$OUT"
+          echo "[not auto-selected -- ARP presence alone isn't specific enough, confirm which one is actually the manager and set MORPHEUS_MANAGER_IP]" >> "$OUT"
+        fi
+      fi
+    fi
   fi
   if [[ -n "$MORPHEUS_MANAGER_IP" ]]; then
     echo -e "\n--- manager $MORPHEUS_MANAGER_IP ---" >> "$OUT"
@@ -116,17 +144,9 @@ run_diagnose() {
       fi
     done
   else
-    echo -e "\n[no manager IP set or detected]" >> "$OUT"
+    echo -e "\n[no manager IP set or detected -- see ARP candidates above if listed]" >> "$OUT"
   fi
 
-  if [[ -z "$PEER_HOST_IPS" && -f /etc/corosync/corosync.conf ]]; then
-    MY_IPS=$(hostname -I 2>/dev/null)
-    NODES=$(grep -oE 'ring0_addr:\s*[0-9.]+' /etc/corosync/corosync.conf 2>/dev/null | awk '{print $2}')
-    FOUND=""
-    for n in $NODES; do echo "$MY_IPS" | grep -qw "$n" || FOUND="$FOUND $n"; done
-    PEER_HOST_IPS=$(echo "$FOUND" | xargs)
-    [[ -n "$PEER_HOST_IPS" ]] && echo -e "\n[auto-detected peers from corosync.conf: $PEER_HOST_IPS]" >> "$OUT"
-  fi
   if [[ -n "$PEER_HOST_IPS" ]]; then
     echo -e "\n--- peers ---" >> "$OUT"
     for peer in $PEER_HOST_IPS; do
@@ -177,11 +197,6 @@ run_verify() {
   info() { CHECK_NAMES+=("$1"); CHECK_RESULTS+=("INFO"); }
   log() { echo -e "$1" >> "$EVID"; }
 
-  if [[ -z "$MORPHEUS_MANAGER_IP" ]]; then
-    AUTO_MGR=$(ss -tn state established '( dport = :443 )' 2>/dev/null | grep -oE '[0-9]{1,3}(\.[0-9]{1,3}){3}:443' | cut -d: -f1 | head -1)
-    [[ -n "$AUTO_MGR" ]] && MORPHEUS_MANAGER_IP="$AUTO_MGR" && log "[auto-detected manager from active :443 connection: $AUTO_MGR]"
-  fi
-
   if [[ -z "$PEER_HOST_IPS" && -f /etc/corosync/corosync.conf ]]; then
     MY_IPS=$(hostname -I 2>/dev/null)
     NODES=$(grep -oE 'ring0_addr:\s*[0-9.]+' /etc/corosync/corosync.conf 2>/dev/null | awk '{print $2}')
@@ -190,6 +205,32 @@ run_verify() {
     PEER_HOST_IPS=$(echo "$FOUND" | xargs)
     [[ -n "$PEER_HOST_IPS" ]] && log "[auto-detected peers from corosync.conf: $PEER_HOST_IPS]"
   fi
+
+  if [[ -z "$MORPHEUS_MANAGER_IP" ]]; then
+    AUTO_MGR=$(ss -tn state established '( dport = :443 )' 2>/dev/null | grep -oE '[0-9]{1,3}(\.[0-9]{1,3}){3}:443' | cut -d: -f1 | head -1)
+    if [[ -n "$AUTO_MGR" ]]; then
+      MORPHEUS_MANAGER_IP="$AUTO_MGR"
+      log "[auto-detected manager from active :443 connection: $AUTO_MGR]"
+    else
+      DEF_IF=$(ip route show default 2>/dev/null | awk '{print $5}' | head -1)
+      GW_IP=$(ip route show default 2>/dev/null | awk '{print $3}' | head -1)
+      if [[ -n "$DEF_IF" ]]; then
+        NEIGHS=$(ip neigh show dev "$DEF_IF" 2>/dev/null | awk '$NF ~ /REACHABLE|STALE|DELAY|PERMANENT/ {print $1}')
+        MGR_CANDIDATES=""
+        for n in $NEIGHS; do
+          [[ "$n" == "$GW_IP" ]] && continue
+          echo "$PEER_HOST_IPS" | grep -qw "$n" && continue
+          MGR_CANDIDATES="$MGR_CANDIDATES $n"
+        done
+        MGR_CANDIDATES=$(echo "$MGR_CANDIDATES" | xargs)
+        if [[ -n "$MGR_CANDIDATES" ]]; then
+          log "[manager candidates via ARP on $DEF_IF, excluding gateway $GW_IP and known peers: $MGR_CANDIDATES]"
+          info "manager IP not confirmed, ARP candidates: $MGR_CANDIDATES -- set MORPHEUS_MANAGER_IP to confirm"
+        fi
+      fi
+    fi
+  fi
+
 
   if [[ -z "$NFS_SERVER_IP" ]]; then
     AUTO_NFS=$(findmnt -t nfs,nfs4 -no SOURCE 2>/dev/null | head -1 | cut -d: -f1)
