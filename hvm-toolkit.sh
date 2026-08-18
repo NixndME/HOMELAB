@@ -409,15 +409,20 @@ run_verify() {
     else
       log "  [FAIL] $NFS_SERVER_IP ping"; fail "NFS server ping"
     fi
-    if check_port "$NFS_SERVER_IP" 111; then
-      log "  [OK] $NFS_SERVER_IP:111 (rpcbind-mount)"; pass "NFS server port 111 (rpcbind, needed for NFSv3 mount)"
+    for p in 111:rpcbind 20048:mountd 875:rquotad 2049:nfs; do
+      port="${p%%:*}"; label="${p##*:}"
+      if check_port "$NFS_SERVER_IP" "$port"; then
+        log "  [OK] $NFS_SERVER_IP:$port ($label)"; pass "NFS server port $port ($label)"
+      else
+        log "  [FAIL] $NFS_SERVER_IP:$port ($label)"; fail "NFS server port $port ($label)"
+      fi
+    done
+    if command -v rpcinfo &>/dev/null; then
+      log "rpcinfo -p (live RPC program/port bindings, incl. dynamic lockmgr/statd/quota ports):"
+      rpcinfo -p "$NFS_SERVER_IP" >> "$EVID" 2>&1
+      info "rpcinfo captured, see evidence for actual dynamic port assignments"
     else
-      log "  [FAIL] $NFS_SERVER_IP:111 (rpcbind-mount)"; fail "NFS server port 111 (rpcbind, needed for NFSv3 mount)"
-    fi
-    if check_port "$NFS_SERVER_IP" 2049; then
-      log "  [OK] $NFS_SERVER_IP:2049"; pass "NFS server reachable"
-    else
-      log "  [FAIL] $NFS_SERVER_IP:2049"; fail "NFS server reachable"
+      skip "rpcinfo (not installed, can't enumerate dynamic NLM/NSM/quota ports)"
     fi
   else
     skip "NFS reachability (no server set or detected)"
