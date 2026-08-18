@@ -49,18 +49,23 @@ sudo pacman -S --needed --noconfirm openssh
 sudo systemctl enable --now sshd.service
 
 echo "==> [5/6] RDP server — KDE native KRDP (macOS: use 'Windows App' RDP client)"
-sudo pacman -S --needed --noconfirm krdp
-mkdir -p "$HOME/.local/share/krdpserver"
-CERT_PATH="$HOME/.local/share/krdpserver/krdp.crt"
-KEY_PATH="$HOME/.local/share/krdpserver/krdp.key"
-if [[ ! -f "$CERT_PATH" ]]; then
-  openssl req -nodes -new -x509 -keyout "$KEY_PATH" -out "$CERT_PATH" -days 365 -batch
+if [[ "${XDG_CURRENT_DESKTOP:-}" == *KDE* ]] || command -v plasmashell &>/dev/null; then
+  sudo pacman -S --needed --noconfirm krdp
+  mkdir -p "$HOME/.local/share/krdpserver"
+  CERT_PATH="$HOME/.local/share/krdpserver/krdp.crt"
+  KEY_PATH="$HOME/.local/share/krdpserver/krdp.key"
+  if [[ ! -f "$CERT_PATH" ]]; then
+    openssl req -nodes -new -x509 -keyout "$KEY_PATH" -out "$CERT_PATH" -days 365 -batch
+  fi
+  kwriteconfig6 --file krdpserverrc --group General --key Certificate "$CERT_PATH"
+  kwriteconfig6 --file krdpserverrc --group General --key CertificateKey "$KEY_PATH"
+  kwriteconfig6 --file krdpserverrc --group General --key SystemUserEnabled true
+  systemctl --user enable --now app-org.kde.krdpserver.service
+  echo "  If this doesn't connect: System Settings -> Remote Desktop -> enable RDP there instead (GUI is the documented fallback)."
+else
+  echo "  ${ICON_WARN} No KDE Plasma detected (this step is KDE-specific - skipping cleanly rather than attempting kwriteconfig6/krdp on a non-KDE session)."
+  echo "  On Hyprland/Omarchy specifically, look into waypipe, wayvnc, or Omarchy's own remote-access docs instead."
 fi
-kwriteconfig6 --file krdpserverrc --group General --key Certificate "$CERT_PATH"
-kwriteconfig6 --file krdpserverrc --group General --key CertificateKey "$KEY_PATH"
-kwriteconfig6 --file krdpserverrc --group General --key SystemUserEnabled true
-systemctl --user enable --now app-org.kde.krdpserver.service
-echo "  If this doesn't connect: System Settings -> Remote Desktop -> enable RDP there instead (GUI is the documented fallback)."
 
 echo "==> [6/6] Firewall: open SSH (22) and RDP (3389)"
 if command -v ufw &>/dev/null && sudo ufw status | grep -q "Status: active"; then
@@ -69,6 +74,87 @@ if command -v ufw &>/dev/null && sudo ufw status | grep -q "Status: active"; the
   sudo ufw reload
 else
   echo "  ufw inactive/not installed — skip (open these ports manually once ufw is enabled)"
+fi
+
+# =====================================================================
+#  Omarchy-only debloat - safely does nothing on CachyOS/EndeavourOS/plain
+#  Arch, so this script stays reusable across whichever distro you're on.
+#  Extends the user's own proven pattern (originally omarchy-post-install.sh,
+#  Basecamp/HEY only) to also cover OBS/screen-recording bloat.
+# =====================================================================
+if pacman -Qi omarchy &>/dev/null || command -v omarchy-remove-preinstalls &>/dev/null; then
+  echo ""
+  echo "==> Omarchy detected - removing unwanted bundled apps"
+
+  hypr_config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/hypr"
+
+  # Replace only a block owned by this script, leaving the rest of each config
+  # file available for other customizations - same mechanism as the user's
+  # original omarchy-post-install.sh.
+  omarchy_replace_managed_block() {
+    local file="$1" temporary_file
+    mkdir -p "$(dirname "$file")"
+    temporary_file="$(mktemp "${file}.XXXXXX")"
+    if [[ -f "$file" ]]; then
+      awk '
+        /-- BEGIN arch-setup omarchy-debloat/, /-- END arch-setup omarchy-debloat/ { next }
+        { print }
+      ' "$file" > "$temporary_file"
+    fi
+    printf '\n-- BEGIN arch-setup omarchy-debloat\n%s\n-- END arch-setup omarchy-debloat\n' "$2" >> "$temporary_file"
+    mv "$temporary_file" "$file"
+  }
+
+  # Natural scrolling - restored from the original omarchy-post-install.sh,
+  # dropped by mistake when this was first ported over.
+  omarchy_replace_managed_block "$hypr_config_dir/input.lua" '
+hl.config({
+  input = {
+    touchpad = {
+      natural_scroll = true,
+    },
+  },
+})'
+
+  # Web apps - removed via omarchy-webapp-remove (Omarchy's own tool), by real
+  # filename. Confirmed 11/11 working on a real machine - an earlier version of
+  # this tried matching the .desktop file's Name= field, which was checking the
+  # wrong thing entirely (omarchy-webapp-remove itself just does
+  # rm -f "$DESKTOP_DIR/$APP_NAME.desktop", matched by filename, not Name=).
+  DESKTOP_DIR="$HOME/.local/share/applications"
+  webapp_names=("Basecamp" "Discord" "Google Contacts" "Google Maps" "Google Messages" "Google Photos" "HEY" "WhatsApp" "X" "YouTube" "Zoom")
+  for app_name in "${webapp_names[@]}"; do
+    if [[ -f "$DESKTOP_DIR/$app_name.desktop" ]]; then
+      omarchy-webapp-remove "$app_name"
+      echo "  Removed: $app_name"
+    else
+      echo "  ${ICON_WARN} Already gone or never present: $app_name"
+    fi
+  done
+  omarchy_replace_managed_block "$hypr_config_dir/bindings.lua" '
+hl.unbind("SUPER + SHIFT + C")
+hl.unbind("SUPER + SHIFT + E")
+hl.unbind("SUPER + SHIFT + ALT + E")'
+
+  # Package removal - via omarchy-pkg-drop (Omarchy's own tool, confirmed via
+  # its own source: checks what's actually installed internally, no-ops on
+  # anything absent, handles sudo itself). Candidate list confirmed against
+  # Omarchy's own omarchy-remove-preinstalls source: obs-studio, kdenlive,
+  # moonlight-qt. gpu-screen-recorder deliberately excluded - Omarchy's own
+  # script doesn't drop it either. voxtype-bin deliberately left untouched.
+  echo "  About to run: omarchy-pkg-drop obs-studio kdenlive moonlight-qt"
+  read -rp "  Continue? [y/N] " omarchy_confirm
+  if [[ "$omarchy_confirm" == "y" || "$omarchy_confirm" == "Y" ]]; then
+    omarchy-pkg-drop obs-studio kdenlive moonlight-qt
+  else
+    echo "  Skipped - nothing removed."
+  fi
+
+  if command -v hyprctl &>/dev/null && hyprctl reload &>/dev/null; then
+    echo "  Hyprland config reloaded."
+  else
+    echo "  Hyprland not reachable right now - bindings will apply on your next Hyprland session."
+  fi
 fi
 
 echo ""
