@@ -166,11 +166,21 @@ run_diagnose() {
 
   if [[ -n "$NFS_SERVER_IP" ]]; then
     echo -e "\n--- nfs $NFS_SERVER_IP ---" >> "$OUT"
-    if check_port "$NFS_SERVER_IP" 2049; then
-      echo "  [OK]   $NFS_SERVER_IP:2049" >> "$OUT"
+    echo "route used:" >> "$OUT"
+    ip route get "$NFS_SERVER_IP" >> "$OUT" 2>&1
+    if ping -c 2 -W 2 "$NFS_SERVER_IP" &>/dev/null; then
+      echo "  [OK]   $NFS_SERVER_IP ping" >> "$OUT"
     else
-      echo "  [FAIL] $NFS_SERVER_IP:2049" >> "$OUT"
+      echo "  [FAIL] $NFS_SERVER_IP ping" >> "$OUT"
     fi
+    for p in 111:rpcbind-mount 2049:nfs; do
+      port="${p%%:*}"; label="${p##*:}"
+      if check_port "$NFS_SERVER_IP" "$port"; then
+        echo "  [OK]   $NFS_SERVER_IP:$port ($label)" >> "$OUT"
+      else
+        echo "  [FAIL] $NFS_SERVER_IP:$port ($label)" >> "$OUT"
+      fi
+    done
     if command -v showmount &>/dev/null; then
       timeout 5 showmount -e "$NFS_SERVER_IP" >> "$OUT" 2>&1
     else
@@ -287,6 +297,20 @@ run_verify() {
     fi
   done
 
+  log "\n=== VLAN SUB-INTERFACE OVS ATTACHMENT ==="
+  for v in $(ip -br link show type vlan 2>/dev/null | awk '{print $1}'); do
+    if ip -d link show "$v" 2>/dev/null | grep -q "master ovs-system"; then
+      pass "$v is OVS-attached"
+    else
+      HASIP=$(ip -4 -br addr show "$v" 2>/dev/null | awk '{print $3}')
+      if [[ -n "$HASIP" ]]; then
+        fail "$v is a bare kernel VLAN interface carrying $HASIP, not attached to OVS - can silently intercept tagged traffic meant for an OVS bridge on the same VLAN, with no error anywhere in the stack"
+      else
+        info "$v is a bare kernel VLAN interface (no IP), not attached to OVS"
+      fi
+    fi
+  done
+
   log "\n=== VLANS ==="
   if command -v ovs-vsctl &>/dev/null; then
     if [[ -n "$VLAN_EXPECT" ]]; then
@@ -379,6 +403,17 @@ run_verify() {
 
   log "\n=== NFS ==="
   if [[ -n "$NFS_SERVER_IP" ]]; then
+    log "route used: $(ip route get "$NFS_SERVER_IP" 2>&1)"
+    if ping -c 2 -W 2 "$NFS_SERVER_IP" &>/dev/null; then
+      log "  [OK] $NFS_SERVER_IP ping"; pass "NFS server ping"
+    else
+      log "  [FAIL] $NFS_SERVER_IP ping"; fail "NFS server ping"
+    fi
+    if check_port "$NFS_SERVER_IP" 111; then
+      log "  [OK] $NFS_SERVER_IP:111 (rpcbind-mount)"; pass "NFS server port 111 (rpcbind, needed for NFSv3 mount)"
+    else
+      log "  [FAIL] $NFS_SERVER_IP:111 (rpcbind-mount)"; fail "NFS server port 111 (rpcbind, needed for NFSv3 mount)"
+    fi
     if check_port "$NFS_SERVER_IP" 2049; then
       log "  [OK] $NFS_SERVER_IP:2049"; pass "NFS server reachable"
     else
