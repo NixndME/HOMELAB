@@ -131,24 +131,55 @@ hl.config({
       echo "  ${ICON_WARN} Already gone or never present: $app_name"
     fi
   done
-  omarchy_replace_managed_block "$hypr_config_dir/bindings.lua" '
-hl.unbind("SUPER + SHIFT + C")
-hl.unbind("SUPER + SHIFT + E")
-hl.unbind("SUPER + SHIFT + ALT + E")'
 
   # Package removal - via omarchy-pkg-drop (Omarchy's own tool, confirmed via
   # its own source: checks what's actually installed internally, no-ops on
-  # anything absent, handles sudo itself). Candidate list confirmed against
-  # Omarchy's own omarchy-remove-preinstalls source: obs-studio, kdenlive,
-  # moonlight-qt. gpu-screen-recorder deliberately excluded - Omarchy's own
-  # script doesn't drop it either. voxtype-bin deliberately left untouched.
-  echo "  About to run: omarchy-pkg-drop obs-studio kdenlive moonlight-qt"
+  # anything absent, handles sudo itself). obs-studio/kdenlive/moonlight-qt
+  # confirmed against Omarchy's own omarchy-remove-preinstalls source list.
+  # gpu-screen-recorder deliberately excluded - Omarchy's own script doesn't
+  # drop it either. voxtype-bin deliberately left untouched.
+  #
+  # chromium and foot are user-requested additions, NOT in that stock list -
+  # verified safe/risky by checking this machine directly. foot: Ghostty is
+  # already the active default terminal (~/.config/xdg-terminals.list), so
+  # dropping foot is a no-op for terminal launching. chromium: riskier -
+  # default browser here is Zen (not Chromium-based), and Omarchy's
+  # omarchy-launch-webapp falls back to chromium.desktop specifically when
+  # the default browser isn't Chromium-engine-based, so several preinstalled
+  # SUPER+SHIFT+* webapp keybindings (ChatGPT, Grok, YouTube, WhatsApp,
+  # Google Maps/Messages/Photos, X) resolve through chromium under the hood.
+  # The unbind step below only strips those once chromium is confirmed gone,
+  # so declining the prompt below leaves everything working as before.
+  echo "  About to run: omarchy-pkg-drop obs-studio kdenlive moonlight-qt chromium foot"
   read -rp "  Continue? [y/N] " omarchy_confirm
   if [[ "$omarchy_confirm" == "y" || "$omarchy_confirm" == "Y" ]]; then
-    omarchy-pkg-drop obs-studio kdenlive moonlight-qt
+    omarchy-pkg-drop obs-studio kdenlive moonlight-qt chromium foot
   else
     echo "  Skipped - nothing removed."
   fi
+
+  # Keybindings tied to removed apps/fallbacks. C/E/ALT+E (Calendar/Email/New
+  # email) always unbind - they point at the HEY webapp removed above. The
+  # chromium-fallback webapp bindings only unbind if chromium is actually
+  # gone - otherwise those shortcuts still work fine and unbinding them would
+  # break something that isn't actually broken.
+  bindings_block='hl.unbind("SUPER + SHIFT + C")
+hl.unbind("SUPER + SHIFT + E")
+hl.unbind("SUPER + SHIFT + ALT + E")'
+  if ! pacman -Qi chromium &>/dev/null; then
+    bindings_block+='
+hl.unbind("SUPER + SHIFT + A")        -- ChatGPT webapp (chromium fallback)
+hl.unbind("SUPER + SHIFT + ALT + A")  -- Grok webapp (chromium fallback)
+hl.unbind("SUPER + SHIFT + Y")        -- YouTube webapp (chromium fallback)
+hl.unbind("SUPER + SHIFT + ALT + G")  -- WhatsApp webapp (chromium fallback)
+hl.unbind("SUPER + SHIFT + CTRL + G") -- Google Messages webapp (chromium fallback)
+hl.unbind("SUPER + SHIFT + P")        -- Google Photos webapp (chromium fallback)
+hl.unbind("SUPER + SHIFT + S")        -- Google Maps webapp (chromium fallback)
+hl.unbind("SUPER + SHIFT + X")        -- X webapp (chromium fallback)
+hl.unbind("SUPER + SHIFT + ALT + X")  -- X Post webapp (chromium fallback)'
+    echo "  ${ICON_OK} chromium not installed - also unbinding its dependent webapp shortcuts."
+  fi
+  omarchy_replace_managed_block "$hypr_config_dir/bindings.lua" "$bindings_block"
 
   if command -v hyprctl &>/dev/null && hyprctl reload &>/dev/null; then
     echo "  Hyprland config reloaded."
@@ -166,7 +197,7 @@ echo ""
 # ---------------------------------------------------------------------------
 
 # ---- Catalog: tag | description | method(pacman/aur/custom/flatpak) | package ----
-TAGS=(virt-stack claude-desktop antigravity claude-code gemini-cli opencode opera obsidian freelens terraform kubectl helm ansible argocd k9s kubectx podman podman-desktop kind k3s teams outlook usbimager bambu-studio beeper zen-browser github-cli openwhispr firefox vlc gemini-desktop)
+TAGS=(virt-stack claude-desktop antigravity claude-code gemini-cli opencode opera obsidian freelens terraform kubectl helm ansible argocd k9s kubectx podman podman-desktop kind k3s teams outlook usbimager bambu-studio beeper zen-browser github-cli openwhispr firefox vlc gemini-desktop vim)
 DESCS=(
   "Virtualization: virt-manager + QEMU/KVM + libvirt [custom - full lab stack, not pre-installed on EndeavourOS the way it is on CachyOS. Installs ONCE when checked, never re-runs automatically.]"
   "Claude Desktop [AUR]"
@@ -199,9 +230,10 @@ DESCS=(
   "Firefox"
   "VLC"
   "Gemini Desktop - unofficial Electron wrapper around the Gemini web app [AUR, -git source build, no pre-built -bin variant found]"
+  "Vim - Vi Improved text editor [official]"
 )
-METHODS=(custom aur aur aur pacman pacman aur pacman aur pacman pacman pacman pacman pacman pacman pacman custom pacman pacman aur aur aur aur flatpak aur aur pacman custom pacman pacman aur)
-PKGS=(virt-stack claude-desktop antigravity-ide claude-code gemini-cli opencode opera obsidian freelens-bin terraform kubectl helm ansible argocd k9s kubectx podman podman-desktop kind k3s-bin teams-for-linux outlook-for-linux-bin usbimager com.bambulab.BambuStudio beeper-v4-bin zen-browser-bin github-cli openwhispr firefox vlc gemini-desktop-git)
+METHODS=(custom aur aur aur pacman pacman aur pacman aur pacman pacman pacman pacman pacman pacman pacman custom pacman pacman aur aur aur aur flatpak aur aur pacman custom pacman pacman aur pacman)
+PKGS=(virt-stack claude-desktop antigravity-ide claude-code gemini-cli opencode opera obsidian freelens-bin terraform kubectl helm ansible argocd k9s kubectx podman podman-desktop kind k3s-bin teams-for-linux outlook-for-linux-bin usbimager com.bambulab.BambuStudio beeper-v4-bin zen-browser-bin github-cli openwhispr firefox vlc gemini-desktop-git vim)
 
 # =====================================================================
 #  Custom install functions
