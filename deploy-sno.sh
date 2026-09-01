@@ -482,13 +482,58 @@ PYEOF
 # ---------------------------------------------------------------------------
 # wait_install
 # ---------------------------------------------------------------------------
+# Watchdog for the bootstrap-complete window: after coreos-installer writes
+# RHCOS to disk, the live environment is supposed to reboot straight into
+# the installed OS (on_reboot=restart in the VM's libvirt config handles
+# that transparently). On some hosts/timings it issues a full ACPI poweroff
+# instead of a reboot, and because on_poweroff=destroy, libvirt just stops
+# the domain instead of restarting it — the install silently stalls with
+# the VM sitting "shut off" and openshift-install polling an API that will
+# never come back.
+#
+# Restarting the VM after that sometimes drops it into the UEFI Interactive
+# Shell rather than booting the installed disk, because RHCOS never got the
+# chance to register its NVRAM boot entry before the poweroff — see "VM
+# drops to the UEFI shell" in the README's Troubleshooting section. The
+# manual fix there is to type, at the Shell> prompt:
+#   FS0:
+#   \EFI\BOOT\BOOTX64.EFI
+# We replay exactly that over the console via `virsh send-key` after
+# restarting: that fallback path exists on every disk coreos-installer
+# writes, and if the VM actually came back up cleanly and this lands on a
+# login prompt or GRUB menu instead, the keystrokes are inert there.
+recover_vm_from_poweroff() {
+  while true; do
+    sleep 20
+    local state
+    state=$(virsh -c qemu:///system domstate "$VM_NAME" 2>/dev/null || echo "")
+    [ "$state" = "shut off" ] || continue
+    warn "VM '${VM_NAME}' powered off mid-install (known RHCOS post-write-reboot quirk) — restarting and replaying UEFI boot-recovery keystrokes..."
+    virsh -c qemu:///system start "$VM_NAME" >/dev/null 2>&1 || continue
+    sleep 25
+    local k
+    k() { virsh -c qemu:///system send-key "$VM_NAME" --codeset linux "$@" >/dev/null 2>&1; }
+    k KEY_F; k KEY_S; k KEY_0; k KEY_LEFTSHIFT KEY_SEMICOLON; k KEY_ENTER
+    sleep 1
+    k KEY_BACKSLASH; k KEY_E; k KEY_F; k KEY_I
+    k KEY_BACKSLASH; k KEY_B; k KEY_O; k KEY_O; k KEY_T
+    k KEY_BACKSLASH; k KEY_B; k KEY_O; k KEY_O; k KEY_T; k KEY_X; k KEY_6; k KEY_4
+    k KEY_DOT; k KEY_E; k KEY_F; k KEY_I
+    k KEY_ENTER
+  done
+}
+
 wait_install() {
   [ -x "${BIN_DIR}/openshift-install" ] || fail "run fetch_tools first"
   [ -d "$BUILD_DIR" ] || fail "run create_iso first"
 
   log "Waiting for bootstrap to complete (API reachable)..."
+  recover_vm_from_poweroff &
+  local recover_pid=$!
   "${BIN_DIR}/openshift-install" agent wait-for bootstrap-complete --dir="$BUILD_DIR" --log-level=info \
     | tee "${LOG_DIR}/wait-bootstrap.log"
+  kill "$recover_pid" >/dev/null 2>&1 || true
+  wait "$recover_pid" 2>/dev/null || true
 
   log "Waiting for install to complete (this can take 30-60+ min on a nested VM)..."
   "${BIN_DIR}/openshift-install" agent wait-for install-complete --dir="$BUILD_DIR" --log-level=info \
@@ -548,8 +593,13 @@ spec:
 EOF
   "$OC" apply -f "${MANIFEST_DIR}/cnv-subscription.yaml"
 
-  log "Waiting for OpenShift Virtualization CSV to reach Succeeded (up to 15m)..."
-  local deadline=$((SECONDS + 900))
+  # 15m was too tight on a cold pull: the HCO operator subscription pulls
+  # several sizeable images in sequence (hco -> cdi/cnao/ssp/virt-operator
+  # -> their own dependents), which routinely runs past 15m the first time
+  # on a nested VM even though nothing is actually stuck. 25m gives that
+  # room without masking a genuinely wedged install.
+  log "Waiting for OpenShift Virtualization CSV to reach Succeeded (up to 25m)..."
+  local deadline=$((SECONDS + 1500))
   while true; do
     local phase
     phase=$("$OC" get csv -n openshift-cnv \
@@ -791,8 +841,13 @@ spec:
         claimName: rbd-rwx-block-test
 EOF
   "$OC" apply -f "${MANIFEST_DIR}/test-pvc.yaml"
-  "$OC" -n default wait --for=jsonpath='{.status.phase}'=Bound pvc/rbd-rwx-block-test --timeout=120s
-  "$OC" -n default wait --for=condition=Ready pod/rbd-rwx-block-test-pod --timeout=180s || true
+  # 120s was too tight the first time the CSI driver deploys: the
+  # rook-ceph-csi-detect-version job has to complete before the actual
+  # csi-rbdplugin-provisioner/nodeplugin pods even get created, and pulling
+  # those images fresh routinely takes a few minutes on a nested VM — no
+  # provisioner running means the PVC just sits Pending until it does.
+  "$OC" -n default wait --for=jsonpath='{.status.phase}'=Bound pvc/rbd-rwx-block-test --timeout=300s
+  "$OC" -n default wait --for=condition=Ready pod/rbd-rwx-block-test-pod --timeout=300s || true
   sleep 5
   "$OC" -n default logs pod/rbd-rwx-block-test-pod | grep -q BLOCK_WRITE_OK \
     && log "SUCCESS: RWX+Block PVC bound and writable." \
