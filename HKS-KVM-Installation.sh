@@ -132,13 +132,17 @@ if [[ -f "$CLOUD_IMG" ]] && [[ $(stat -c%s "$CLOUD_IMG" 2>/dev/null || echo 0) -
 fi
 if [[ "$NEED_DOWNLOAD" == true ]]; then
   echo "  Downloading..."
-  wget -O "$CLOUD_IMG" "$CLOUD_IMG_URL"
+  if ! curl -fL --progress-bar -o "$CLOUD_IMG" "$CLOUD_IMG_URL"; then
+    echo "  ${ICON_FAIL} Download failed"
+    rm -f "$CLOUD_IMG"
+    exit 1
+  fi
 fi
 
 echo "  Verifying SHA256..."
 TMP_SHA=$(mktemp)
 ACTUAL=""
-if wget -q -O "$TMP_SHA" "$CLOUD_SHA_URL"; then
+if curl -fsSL -o "$TMP_SHA" "$CLOUD_SHA_URL"; then
   EXPECTED=$(grep "noble-server-cloudimg-amd64.img" "$TMP_SHA" | awk '{print $1}')
   ACTUAL=$(sha256sum "$CLOUD_IMG" | awk '{print $1}')
   if [[ -n "$EXPECTED" && "$EXPECTED" == "$ACTUAL" ]]; then
@@ -156,7 +160,10 @@ echo "  Placing a QEMU-readable copy in $IMAGES_DIR (reused as-is if the HVM scr
 if [[ -f "$CLOUD_IMG_LIBVIRT" ]] && [[ -n "$ACTUAL" ]] && [[ "$(sudo sha256sum "$CLOUD_IMG_LIBVIRT" 2>/dev/null | awk '{print $1}')" == "$ACTUAL" ]]; then
   echo "  ${ICON_OK} Already present and matches, skipping copy"
 else
-  sudo cp "$CLOUD_IMG" "$CLOUD_IMG_LIBVIRT"
+  if ! sudo cp "$CLOUD_IMG" "$CLOUD_IMG_LIBVIRT"; then
+    echo "  ${ICON_FAIL} Copy failed"
+    exit 1
+  fi
   echo "  ${ICON_OK} Copied"
 fi
 sudo chmod 444 "$CLOUD_IMG_LIBVIRT"
