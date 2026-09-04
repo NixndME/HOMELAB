@@ -1,0 +1,5 @@
+# Runtime output only - scripts log to ~/homelab-logs, not here, but this is a
+# safety net in case anything ever writes local logs/work dirs by mistake.
+logs/
+*.log
+sno-deploy/

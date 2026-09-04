@@ -31,14 +31,14 @@ ICON_WARN="${C_YELLOW}⚠${C_RESET}"
 FORCE=false
 [[ "${1:-}" == "--force" || "${1:-}" == "-f" ]] && FORCE=true
 
-# ---- Logging: every run leaves a timestamped record ----
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LOG_DIR="$SCRIPT_DIR/logs"
+# ---- Logging: every run leaves a timestamped record, kept outside the repo
+# (under ~/homelab-logs, one folder per script) so it never shows up as
+# untracked/dirty files in this checkout ----
+LOG_DIR="$HOME/homelab-logs/hvm"
 mkdir -p "$LOG_DIR"
 LOG_FILE="$LOG_DIR/hvm-build-$(date +%Y%m%d-%H%M%S).log"
 exec > >(tee -a "$LOG_FILE") 2>&1
 echo "${C_DIM}Logging this run to $LOG_FILE${C_RESET}"
-echo "${C_DIM}(tip: add 'logs/' to .gitignore in this repo)${C_RESET}"
 
 # =====================================================================
 #  CONFIGURATION

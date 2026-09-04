@@ -25,6 +25,15 @@ ICON_OK="${C_GREEN}✓${C_RESET}"
 ICON_FAIL="${C_RED}✗${C_RESET}"
 ICON_WARN="${C_YELLOW}⚠${C_RESET}"
 
+# ---- Logging: every run leaves a timestamped record, kept outside the repo
+# (under ~/homelab-logs, one folder per script) so it never shows up as
+# untracked/dirty files in this checkout ----
+LOG_DIR="$HOME/homelab-logs/arch-postinstall"
+mkdir -p "$LOG_DIR"
+LOG_FILE="$LOG_DIR/arch-postinstall-$(date +%Y%m%d-%H%M%S).log"
+exec > >(tee -a "$LOG_FILE") 2>&1
+echo "${C_DIM}Logging this run to $LOG_FILE${C_RESET}"
+
 # ---------------------------------------------------------------------------
 # PART 1: FOUNDATION
 # ---------------------------------------------------------------------------
@@ -396,12 +405,16 @@ for i in "${!TAGS[@]}"; do
 done
 
 TMPFILE=$(mktemp)
+# dialog's ncurses UI needs to draw straight to the terminal - explicit
+# 1>/dev/tty bypasses the script-wide log redirection (stdout is a pipe to
+# `tee` for logging purposes) so the checklist still renders correctly; the
+# actual selection still comes back via stderr into $TMPFILE, as before.
 dialog --backtitle "Arch Setup" \
   --separate-output \
   --title "Software selection (space=toggle, enter=apply, esc=skip)" \
   --checklist "Checked = install/keep. Unchecked = remove if currently installed." \
   25 100 19 "${ARGS[@]}" \
-  2> "$TMPFILE"
+  1> /dev/tty 2> "$TMPFILE"
 STATUS=$?
 mapfile -t SELECTED < "$TMPFILE"
 rm -f "$TMPFILE"

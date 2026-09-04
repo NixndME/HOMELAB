@@ -55,7 +55,10 @@ ASSETS_DIR="${WORKDIR}/ocp-install"
 SRC_DIR="${ASSETS_DIR}/sources"
 BUILD_DIR="${ASSETS_DIR}/build"
 ISO_DIR="${WORKDIR}/iso"
-LOG_DIR="${WORKDIR}/logs"
+# Logs specifically (not the rest of WORKDIR's installer assets/binaries/ISOs)
+# live outside the repo, under ~/homelab-logs, one folder per script - so a run
+# from inside this checkout never leaves untracked/dirty files for git to notice.
+LOG_DIR="${LOG_DIR:-$HOME/homelab-logs/deploy-sno}"
 MANIFEST_DIR="${WORKDIR}/manifests"
 KUBECONFIG_PATH="${BUILD_DIR}/auth/kubeconfig"
 

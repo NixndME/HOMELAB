@@ -22,8 +22,9 @@ ICON_WARN="${C_YELLOW}⚠${C_RESET}"
 FORCE=false
 [[ "${1:-}" == "--force" || "${1:-}" == "-f" ]] && FORCE=true
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LOG_DIR="$SCRIPT_DIR/logs"
+# Logs live outside the repo (under ~/homelab-logs, one folder per script) so a
+# run never leaves untracked/dirty files for git to notice in this checkout.
+LOG_DIR="$HOME/homelab-logs/hks"
 mkdir -p "$LOG_DIR"
 LOG_FILE="$LOG_DIR/hks-build-$(date +%Y%m%d-%H%M%S).log"
 exec > >(tee -a "$LOG_FILE") 2>&1
