@@ -481,7 +481,7 @@ EOF
 
   if sudo virt-install --name "$name" \
     --vcpus "$VCPUS" --memory "$MEMORY_MB" \
-    --disk path="$IMAGES_DIR/$name.qcow2",format=qcow2,bus=virtio,boot.order=1 \
+    --disk path="$IMAGES_DIR/$name.qcow2",format=qcow2,bus=virtio,target.dev=vda,boot.order=1 \
     --disk path="$IMAGES_DIR/$name-data.qcow2",format=qcow2,bus=virtio,target.dev=vdb \
     --disk path="$IMAGES_DIR/$name-seed.iso",device=cdrom \
     --network network="$NET_MGMT",mac="$mac_mgmt",model=virtio \
