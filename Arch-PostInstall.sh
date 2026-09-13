@@ -271,13 +271,11 @@ if pacman -Qi omarchy &>/dev/null || command -v omarchy-remove-preinstalls &>/de
     fi
   }
 
-  install_omarchy_plugin "https://github.com/crmne/omarchy-hyprmoncfg.git"              "crmne.hyprmoncfg"         "right"
-  install_omarchy_plugin "https://github.com/akitaonrails/ai-usagebar.git"              "akitaonrails.ai-usagebar" "right"
-  install_omarchy_plugin "https://github.com/Harshith292002/omarchy-system-monitor.git" "harshith.system-monitor" "right"
-  install_omarchy_plugin "https://github.com/kristofferR/omarchy-expose.git"            "expose.window-overview"  ""
-  install_omarchy_plugin "https://github.com/ax1g/quickshell-screentime-plugin.git"     "agx.screen-time"         "center"
+  install_omarchy_plugin "https://github.com/crmne/omarchy-hyprmoncfg.git"   "crmne.hyprmoncfg"             "right"
+  install_omarchy_plugin "https://github.com/kristofferR/omarchy-expose.git" "expose.window-overview"       ""
+  install_omarchy_plugin "https://github.com/diegopluna/omarchy-argus.git"  "io.github.diegopluna.argus"    "center"
 
-  echo "  ${ICON_OK} Bar plugins ready: hyprmoncfg + AI usage + system monitor on right, screen time center, Exposé enabled (default: top-left hot corner, no keybind)."
+  echo "  ${ICON_OK} Bar plugins ready: hyprmoncfg on right, Argus center, Exposé enabled (default: top-left hot corner, no keybind)."
 fi
 
 echo ""
