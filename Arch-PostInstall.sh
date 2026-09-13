@@ -197,6 +197,49 @@ hl.unbind("SUPER + SHIFT + ALT + X")  -- X Post webapp (chromium fallback)'
   fi
 fi
 
+# =====================================================================
+#  Omarchy-only: voxtype dictation self-heal - safely does nothing on
+#  CachyOS/EndeavourOS/plain Arch, or if voxtype was never installed.
+#  Fixes two failure modes found on a real machine (2026-09-13):
+#   1. Configured whisper model not actually downloaded on disk -> daemon
+#      crash-loops on startup (systemd endlessly restarts it, hotkey never
+#      registers). Root-caused via `journalctl --user -u voxtype.service`
+#      showing "Model not found", restart counter in the hundreds.
+#   2. User not in the 'input' group -> evdev hotkey listener can't open
+#      /dev/input/event* (group-owned, mode 660), so the daemon starts fine
+#      but logs "No keyboard device found in /dev/input/" and the hotkey
+#      silently does nothing. Same fix pattern as install_openwhispr() above.
+# =====================================================================
+if (pacman -Qi omarchy &>/dev/null || command -v omarchy-remove-preinstalls &>/dev/null) && command -v voxtype &>/dev/null; then
+  echo ""
+  echo "==> Omarchy + voxtype detected - checking dictation setup"
+
+  VOXTYPE_MODEL="small.en"
+
+  # Download (idempotent - no-ops if already present) and activate it as the
+  # active engine/model in config.toml, preserving comments/other settings.
+  voxtype setup --download --model "$VOXTYPE_MODEL" --quiet --activate
+
+  # Hotkey: Right Ctrl, toggle mode (press once to start recording, again to stop).
+  voxtype config set hotkey.enabled true
+  voxtype config set hotkey.key RIGHTCTRL
+  voxtype config set hotkey.mode toggle
+
+  if ! groups "$USER" | grep -qw input; then
+    sudo gpasswd -a "$USER" input
+    echo "  ${ICON_WARN} Added to 'input' group - this needs a LOGOUT/LOGIN to take effect, not just this script finishing."
+  fi
+
+  systemctl --user enable --now voxtype.service 2>/dev/null || true
+  systemctl --user restart voxtype.service
+  sleep 2
+  if systemctl --user is-active --quiet voxtype.service; then
+    echo "  ${ICON_OK} voxtype daemon running with model=$VOXTYPE_MODEL, hotkey=RIGHTCTRL (toggle)."
+  else
+    echo "  ${ICON_FAIL} voxtype daemon not active - check: journalctl --user -u voxtype.service -n 40"
+  fi
+fi
+
 echo ""
 echo "==> Foundation complete."
 echo ""
