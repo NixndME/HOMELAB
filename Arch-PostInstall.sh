@@ -240,6 +240,46 @@ if (pacman -Qi omarchy &>/dev/null || command -v omarchy-remove-preinstalls &>/d
   fi
 fi
 
+# =====================================================================
+#  Omarchy-only: Omarchy shell bar plugins - safely does nothing on
+#  CachyOS/EndeavourOS/plain Arch. Plugin ids below are fixed by each
+#  plugin's own manifest.json (not derivable from the repo URL) -
+#  captured from the actual install on this machine on 2026-09-13.
+#  `omarchy plugin add` errors out (exit 1) if the id already exists, so
+#  each plugin is only added if its config dir isn't already there;
+#  enable/move are idempotent and safe to always re-run.
+# =====================================================================
+if pacman -Qi omarchy &>/dev/null || command -v omarchy-remove-preinstalls &>/dev/null; then
+  echo ""
+  echo "==> Omarchy detected - installing bar plugins"
+
+  omarchy_plugins_dir="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/plugins"
+
+  # $1=git url  $2=plugin id (from its manifest.json)  $3=bar section, or "" for
+  # an overlay-only plugin with no bar placement (e.g. Exposé - hot corner/hotkey only)
+  install_omarchy_plugin() {
+    local url="$1" id="$2" section="$3"
+    if [[ -d "$omarchy_plugins_dir/$id" ]]; then
+      echo "  ${ICON_OK} $id already installed."
+    else
+      echo "  Installing $id..."
+      omarchy plugin add "$url" --enable --yes
+    fi
+    omarchy plugin enable "$id" &>/dev/null || true
+    if [[ -n "$section" ]]; then
+      omarchy bar move "$id" --section "$section" &>/dev/null || true
+    fi
+  }
+
+  install_omarchy_plugin "https://github.com/crmne/omarchy-hyprmoncfg.git"              "crmne.hyprmoncfg"         "right"
+  install_omarchy_plugin "https://github.com/akitaonrails/ai-usagebar.git"              "akitaonrails.ai-usagebar" "right"
+  install_omarchy_plugin "https://github.com/Harshith292002/omarchy-system-monitor.git" "harshith.system-monitor" "right"
+  install_omarchy_plugin "https://github.com/kristofferR/omarchy-expose.git"            "expose.window-overview"  ""
+  install_omarchy_plugin "https://github.com/ax1g/quickshell-screentime-plugin.git"     "agx.screen-time"         "center"
+
+  echo "  ${ICON_OK} Bar plugins ready: hyprmoncfg + AI usage + system monitor on right, screen time center, Exposé enabled (default: top-left hot corner, no keybind)."
+fi
+
 echo ""
 echo "==> Foundation complete."
 echo ""
