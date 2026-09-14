@@ -78,9 +78,25 @@ fi
 
 echo "==> [6/6] Firewall: open SSH (22) and RDP (3389)"
 if command -v ufw &>/dev/null && sudo ufw status | grep -q "Status: active"; then
-  sudo ufw allow 22/tcp
-  sudo ufw allow 3389/tcp
-  sudo ufw reload
+  ufw_status="$(sudo ufw status)"
+  ufw_changed=false
+  if echo "$ufw_status" | grep -qE "^22/tcp[[:space:]]+ALLOW"; then
+    echo "  ${ICON_OK} Already done - 22/tcp already allowed. Skipping."
+  else
+    sudo ufw allow 22/tcp
+    ufw_changed=true
+  fi
+  if echo "$ufw_status" | grep -qE "^3389/tcp[[:space:]]+ALLOW"; then
+    echo "  ${ICON_OK} Already done - 3389/tcp already allowed. Skipping."
+  else
+    sudo ufw allow 3389/tcp
+    ufw_changed=true
+  fi
+  if [[ "$ufw_changed" == true ]]; then
+    sudo ufw reload
+  else
+    echo "  ${ICON_OK} No firewall rule changes needed - skipping reload."
+  fi
 else
   echo "  ufw inactive/not installed — skip (open these ports manually once ufw is enabled)"
 fi
@@ -159,12 +175,21 @@ hl.config({
   # Google Maps/Messages/Photos, X) resolve through chromium under the hood.
   # The unbind step below only strips those once chromium is confirmed gone,
   # so declining the prompt below leaves everything working as before.
-  echo "  About to run: omarchy-pkg-drop obs-studio kdenlive moonlight-qt chromium foot"
-  read -rp "  Continue? [y/N] " omarchy_confirm
-  if [[ "$omarchy_confirm" == "y" || "$omarchy_confirm" == "Y" ]]; then
-    omarchy-pkg-drop obs-studio kdenlive moonlight-qt chromium foot
+  omarchy_drop_pkgs=(obs-studio kdenlive moonlight-qt chromium foot)
+  omarchy_drop_remaining=()
+  for p in "${omarchy_drop_pkgs[@]}"; do
+    pacman -Qi "$p" &>/dev/null && omarchy_drop_remaining+=("$p")
+  done
+  if [[ ${#omarchy_drop_remaining[@]} -eq 0 ]]; then
+    echo "  ${ICON_OK} Already done - none of ${omarchy_drop_pkgs[*]} are installed. Skipping, nothing to remove."
   else
-    echo "  Skipped - nothing removed."
+    echo "  About to run: omarchy-pkg-drop ${omarchy_drop_remaining[*]}"
+    read -rp "  Continue? [y/N] " omarchy_confirm
+    if [[ "$omarchy_confirm" == "y" || "$omarchy_confirm" == "Y" ]]; then
+      omarchy-pkg-drop "${omarchy_drop_remaining[@]}"
+    else
+      echo "  Skipped - nothing removed."
+    fi
   fi
 
   # Keybindings tied to removed apps/fallbacks. C/E/ALT+E (Calendar/Email/New
@@ -216,27 +241,62 @@ if (pacman -Qi omarchy &>/dev/null || command -v omarchy-remove-preinstalls &>/d
 
   VOXTYPE_MODEL="small.en"
 
-  # Download (idempotent - no-ops if already present) and activate it as the
-  # active engine/model in config.toml, preserving comments/other settings.
-  voxtype setup --download --model "$VOXTYPE_MODEL" --quiet --activate
+  # Validate current state against desired state before touching anything -
+  # re-running --download/--activate + config set + service restart
+  # unconditionally on every script run was interrupting an already-working
+  # daemon (mid-dictation restarts) for no reason. Only converge what's
+  # actually wrong.
+  voxtype_needs_setup=false
+  [[ "$(voxtype config get engine 2>/dev/null)" == "whisper" ]] || voxtype_needs_setup=true
+  [[ "$(voxtype config get whisper.model 2>/dev/null)" == "$VOXTYPE_MODEL" ]] || voxtype_needs_setup=true
+  [[ "$(voxtype config get hotkey.enabled 2>/dev/null)" == "true" ]] || voxtype_needs_setup=true
+  [[ "$(voxtype config get hotkey.key 2>/dev/null)" == "RIGHTCTRL" ]] || voxtype_needs_setup=true
+  [[ "$(voxtype config get hotkey.mode 2>/dev/null)" == "toggle" ]] || voxtype_needs_setup=true
+  voxtype setup check &>/dev/null || voxtype_needs_setup=true   # also confirms the model file is actually on disk
 
-  # Hotkey: Right Ctrl, toggle mode (press once to start recording, again to stop).
-  voxtype config set hotkey.enabled true
-  voxtype config set hotkey.key RIGHTCTRL
-  voxtype config set hotkey.mode toggle
+  voxtype_needs_group=false
+  groups "$USER" | grep -qw input || voxtype_needs_group=true
 
-  if ! groups "$USER" | grep -qw input; then
-    sudo gpasswd -a "$USER" input
-    echo "  ${ICON_WARN} Added to 'input' group - this needs a LOGOUT/LOGIN to take effect, not just this script finishing."
-  fi
+  voxtype_needs_service=false
+  systemctl --user is-active --quiet voxtype.service || voxtype_needs_service=true
 
-  systemctl --user enable --now voxtype.service 2>/dev/null || true
-  systemctl --user restart voxtype.service
-  sleep 2
-  if systemctl --user is-active --quiet voxtype.service; then
-    echo "  ${ICON_OK} voxtype daemon running with model=$VOXTYPE_MODEL, hotkey=RIGHTCTRL (toggle)."
+  if [[ "$voxtype_needs_setup" == false && "$voxtype_needs_group" == false && "$voxtype_needs_service" == false ]]; then
+    echo "  ${ICON_OK} Already done - voxtype configured (model=$VOXTYPE_MODEL, hotkey=RIGHTCTRL toggle), in 'input' group, and daemon running. Skipping, nothing changed."
   else
-    echo "  ${ICON_FAIL} voxtype daemon not active - check: journalctl --user -u voxtype.service -n 40"
+    if [[ "$voxtype_needs_setup" == true ]]; then
+      echo "  Config/model not fully converged - applying."
+      # Download (idempotent - no-ops if already present) and activate it as the
+      # active engine/model in config.toml, preserving comments/other settings.
+      voxtype setup --download --model "$VOXTYPE_MODEL" --quiet --activate
+
+      # Hotkey: Right Ctrl, toggle mode (press once to start recording, again to stop).
+      voxtype config set hotkey.enabled true
+      voxtype config set hotkey.key RIGHTCTRL
+      voxtype config set hotkey.mode toggle
+    else
+      echo "  ${ICON_OK} Config/model already correct - skipping voxtype setup/config set."
+    fi
+
+    if [[ "$voxtype_needs_group" == true ]]; then
+      sudo gpasswd -a "$USER" input
+      echo "  ${ICON_WARN} Added to 'input' group - this needs a LOGOUT/LOGIN to take effect, not just this script finishing."
+    else
+      echo "  ${ICON_OK} Already in 'input' group - skipping."
+    fi
+
+    systemctl --user enable --now voxtype.service 2>/dev/null || true
+    if [[ "$voxtype_needs_setup" == true || "$voxtype_needs_service" == true ]]; then
+      systemctl --user restart voxtype.service
+      sleep 2
+    else
+      echo "  ${ICON_OK} Daemon already running with correct config - skipping restart."
+    fi
+
+    if systemctl --user is-active --quiet voxtype.service; then
+      echo "  ${ICON_OK} voxtype daemon running with model=$VOXTYPE_MODEL, hotkey=RIGHTCTRL (toggle)."
+    else
+      echo "  ${ICON_FAIL} voxtype daemon not active - check: journalctl --user -u voxtype.service -n 40"
+    fi
   fi
 fi
 
@@ -399,7 +459,7 @@ remove_virt_stack() {
 # the account in the 'input' group - bundling all of it here so it's one checkbox
 # instead of hunting down a separate dependency afterward.
 install_openwhispr() {
-  paru -S --noconfirm openwhispr-bin
+  paru -S --needed --noconfirm openwhispr-bin
   sudo pacman -S --needed --noconfirm ydotool
 
   if ! groups "$USER" | grep -qw input; then
@@ -426,10 +486,26 @@ is_installed() {
   local method="$1" pkg="$2"
   case "$method" in
     custom)
+      # Checked against real working state, not just "package present" - so the
+      # checklist honestly shows a partially-broken setup (service down, group
+      # membership missing) as unchecked rather than silently masking it. Part 2
+      # is still fully interactive: this only changes what shows checked/unchecked
+      # by default, nothing installs/removes unless you act on the checklist.
       case "$pkg" in
-        podman)     pacman -Qi podman &>/dev/null && pacman -Qi podman-docker &>/dev/null ;;
-        virt-stack) command -v virt-manager &>/dev/null ;;
-        openwhispr) pacman -Qi openwhispr-bin &>/dev/null ;;
+        podman)
+          pacman -Qi podman &>/dev/null && pacman -Qi podman-docker &>/dev/null \
+            && systemctl --user is-active --quiet podman.socket
+          ;;
+        virt-stack)
+          command -v virt-manager &>/dev/null \
+            && systemctl is-active --quiet libvirtd.service \
+            && groups "$USER" | grep -qw libvirt && groups "$USER" | grep -qw kvm
+          ;;
+        openwhispr)
+          pacman -Qi openwhispr-bin &>/dev/null && pacman -Qi ydotool &>/dev/null \
+            && groups "$USER" | grep -qw input \
+            && systemctl --user is-active --quiet ydotool.service
+          ;;
       esac
       ;;
     flatpak)
