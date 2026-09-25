@@ -672,10 +672,14 @@ for node in "${NODES[@]}"; do
 done
 rm -rf "$RESULTS_DIR"
 
-# Clean up seed ISOs for nodes that verified OK (no longer needed post-first-boot)
+# Clean up seed ISOs for nodes that verified OK (no longer needed post-first-boot).
+# Must detach the cdrom from the persistent domain XML first -- otherwise libvirt keeps a
+# dangling reference to the deleted ISO and the VM fails to cold-start on the next host
+# reboot with "Cannot access storage file ...-seed.iso: No such file or directory".
 for node in "${NODES[@]}"; do
   read -r n_name _ <<< "$node"
   if [[ "${RESULT_STATUS[$n_name]:-}" == "OK" ]]; then
+    virsh -c qemu:///system detach-disk "$n_name" sda --config &>/dev/null
     sudo rm -f "$IMAGES_DIR/$n_name-seed.iso"
   fi
 done
