@@ -25,6 +25,27 @@ if [ -z "${CF_TUNNEL_TOKEN:-}" ]; then
   exit 1
 fi
 
+echo "== Disabling WiFi (Ethernet-only) =="
+# Running both eth0 and wlan0 simultaneously causes dual default routes and
+# intermittent connection instability (found the hard way: random tunnel
+# drops and firewall rules silently not matching depending on which
+# interface traffic happened to egress from). If this Pi is wired, WiFi
+# should stay off.
+if command -v nmcli >/dev/null 2>&1; then
+  nmcli radio wifi off || true
+fi
+
+echo "== Ensuring DNS is actually configured =="
+# A fresh Pi OS image / NetworkManager profile can leave /etc/resolv.conf
+# empty with systemd-resolved inactive, which makes cloudflared fall back to
+# a much slower internal DNS path on every single request. Set explicit
+# resolvers on the wired connection so this can't silently regress.
+ETH_CON=$(nmcli -t -f NAME,DEVICE con show --active 2>/dev/null | awk -F: '$2=="eth0"{print $1}' | head -1)
+if [ -n "$ETH_CON" ]; then
+  nmcli con modify "$ETH_CON" ipv4.dns "1.1.1.1 8.8.8.8" ipv4.ignore-auto-dns no || true
+  nmcli con up "$ETH_CON" || true
+fi
+
 echo "== Removing any previous docker-based reverse proxy / homelab stack =="
 if command -v docker >/dev/null 2>&1; then
   docker ps -aq | xargs -r docker rm -f
