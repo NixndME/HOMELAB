@@ -35,20 +35,22 @@ spec:
           limits:
             cpu: 500m
             memory: 512Mi
+        # tcpSocket, not httpGet: Trilium rate-limits repeated HTTP requests
+        # (429s), and an httpGet probe hitting it every few seconds was
+        # tripping that limiter, failing the liveness check, and getting
+        # the container SIGKILL'd - likely cause of lost/unsaved notes.
         readinessProbe:
-          httpGet:
-            path: /
+          tcpSocket:
             port: 8080
           initialDelaySeconds: 10
-          periodSeconds: 5
-          failureThreshold: 3
-        livenessProbe:
-          httpGet:
-            path: /
-            port: 8080
-          initialDelaySeconds: 20
           periodSeconds: 15
-          failureThreshold: 3
+          failureThreshold: 5
+        livenessProbe:
+          tcpSocket:
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          failureThreshold: 5
       volumes:
       - name: trilium-data
         persistentVolumeClaim:
