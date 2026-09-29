@@ -180,7 +180,7 @@ spec:
           periodSeconds: 10
           failureThreshold: 3
         args:
-        - "--api.insecure"
+        - "--api=true"
         - "--api.dashboard=true"
         - "--global.checknewversion"
         - "--global.sendanonymoususage"
