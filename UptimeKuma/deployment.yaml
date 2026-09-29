@@ -7,6 +7,8 @@ metadata:
     app: uptime
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: uptime
@@ -18,7 +20,8 @@ spec:
       restartPolicy: Always
       containers:
       - name: uptime
-        image: louislam/uptime-kuma:latest
+        image: louislam/uptime-kuma:1.23.17
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 3001
           protocol: TCP
@@ -29,6 +32,20 @@ spec:
           limits:
             cpu: "300m"
             memory: "250Mi"
+        # tcpSocket, not httpGet: same lesson as Trilium - avoid any risk
+        # of a probe interacting with the app's own request handling.
+        readinessProbe:
+          tcpSocket:
+            port: 3001
+          initialDelaySeconds: 10
+          periodSeconds: 15
+          failureThreshold: 5
+        livenessProbe:
+          tcpSocket:
+            port: 3001
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          failureThreshold: 5
         volumeMounts:
         - name: uptime-vol
           mountPath: /app/data
