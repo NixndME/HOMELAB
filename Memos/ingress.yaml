@@ -1,17 +1,7 @@
-# NOTE: the `memos-auth` Secret referenced by the Middleware below is
-# deliberately NOT defined here. It's applied directly to the cluster
-# (kubectl) and never committed to git.
-apiVersion: traefik.io/v1alpha1
-kind: Middleware
-metadata:
-  name: dashboard-auth
-  namespace: memos
-  labels:
-    app.kubernetes.io/name: memos
-spec:
-  basicAuth:
-    secret: memos-auth
----
+# No Traefik BasicAuth layer here: memos' own Bearer-token API auth and
+# Traefik's BasicAuth both need the single Authorization header, so
+# stacking them breaks every authenticated call after login. Relying
+# solely on memos' own built-in login (hashed passwords, real sessions).
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -21,7 +11,6 @@ metadata:
     app.kubernetes.io/name: memos
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web
-    traefik.ingress.kubernetes.io/router.middlewares: memos-dashboard-auth@kubernetescrd
 spec:
   ingressClassName: traefik
   rules:
