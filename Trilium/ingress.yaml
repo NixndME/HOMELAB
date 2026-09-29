@@ -1,0 +1,25 @@
+# No Traefik BasicAuth in front - Trilium is single-user with its own
+# instance password (set on first visit). Learned from memos: stacking
+# an outer auth layer risks colliding with the app's own auth flow.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: trilium-ingress
+  namespace: trilium
+  labels:
+    app.kubernetes.io/name: trilium
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  ingressClassName: traefik
+  rules:
+  - host: trilium.init0xff.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: trilium-svc
+            port:
+              number: 8080

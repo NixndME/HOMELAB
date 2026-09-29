@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trilium
+  namespace: trilium
+  labels:
+    app.kubernetes.io/name: trilium
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: trilium
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: trilium
+    spec:
+      containers:
+      - name: trilium
+        image: "triliumnext/trilium:v0.106.0"
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        volumeMounts:
+        - name: trilium-data
+          mountPath: /home/node/trilium-data
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 20
+          periodSeconds: 15
+          failureThreshold: 3
+      volumes:
+      - name: trilium-data
+        persistentVolumeClaim:
+          claimName: trilium-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: trilium-svc
+  namespace: trilium
+  labels:
+    app.kubernetes.io/name: trilium
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: trilium
+  ports:
+  - port: 8080
+    name: http
+    targetPort: http
+    protocol: TCP
