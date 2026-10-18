@@ -1,0 +1,8 @@
+[
+  {"name": "Laptop (owner)",   "ip": "192.168.x.21", "tags": ["device_laptop", "os_linux", "user_admin"]},
+  {"name": "Phone (owner)",    "ip": "192.168.x.76", "tags": ["device_phone", "os_ios", "user_admin"]},
+  {"name": "Phone (family)",   "ip": "192.168.x.40", "tags": ["device_phone", "os_android", "user_regular"]},
+  {"name": "Living room TV",   "ip": "192.168.x.58", "tags": ["device_tv", "os_android"]},
+  {"name": "Smart speaker",    "ip": "192.168.x.11", "tags": ["device_audio"]},
+  {"name": "Outdoor camera",   "ip": "192.168.x.37", "tags": ["device_camera"]}
+]

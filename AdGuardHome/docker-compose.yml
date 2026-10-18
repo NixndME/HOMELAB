@@ -1,0 +1,20 @@
+# AdGuard Home: network-wide ad/tracker blocking DNS for the home LAN.
+# Runs on the Pi as its own compose project, fully separate from any other stack on it
+# (e.g. a production app). Host networking so no docker iptables/NAT rules are added and
+# client IPs are visible; DNS binds only to the Pi LAN IP (see setup.sh); the dashboard listens on :3000 (LAN only, not in the tunnel), so it
+# never collides with systemd-resolved on 127.0.0.53.
+name: adguard
+services:
+  adguardhome:
+    image: adguard/adguardhome:v0.107.79
+    container_name: adguardhome
+    network_mode: host
+    restart: always            # come back after power cuts, like the prod stack
+    volumes:
+      - ./work:/opt/adguardhome/work
+      - ./conf:/opt/adguardhome/conf
+    mem_limit: 256m
+    cpus: 0.5
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
