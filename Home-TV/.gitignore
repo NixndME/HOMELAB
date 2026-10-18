@@ -1,0 +1,8 @@
+tools/venv/
+tools/adbkey/
+backup/
+launcher/build/
+launcher/app/build/
+launcher/.gradle/
+launcher/local.properties
+__pycache__/

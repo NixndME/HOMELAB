@@ -1,0 +1,47 @@
+# Xiaomi MiTV-MOOQ0 (codename croods), Android TV 10 (SDK 29), firmware QTG3.200305.006.3270
+# MediaTek/MStar. Live TV / inputs app: com.mediatek.wwtv.tvcenter (kept).
+# Stock launcher: com.google.android.tvlauncher (disabled by launcher/build-and-install.sh, not here).
+#
+# Apply:   TV_HOST=<tv ip> tools/disable.sh examples/xiaomi-mitv-mooq0/debloat.txt
+# Undo:    TV_HOST=<tv ip> tools/restore.sh examples/xiaomi-mitv-mooq0/debloat.txt
+# Everything is DISABLED, not uninstalled. Comment out any line you want to keep.
+#
+# Kept by choice: voice assistant (katniss, tv.assistant), Chromecast (mediashell),
+# screen mirroring (milinkservice, smartshare, wfdsinkhelperservice), firmware updates (updateservice).
+
+# Xiaomi + Google telemetry
+com.miui.tv.analytics
+com.xiaomi.statistic
+com.google.android.feedback
+com.google.android.tv.bugreportsender
+
+# PatchWall, Mi content rows, sponsored rows, partner auto-installs
+com.mitv.tvhome.atv                         # PatchWall (~200 MB RAM)
+com.mitv.tvhome.michannel
+com.mitv.tvhome.mitvplus                    # Mi TV+ ad-supported channels
+com.xm.webcontent
+com.xiaomi.floatingframe
+com.google.android.tvrecommendations
+com.google.android.leanbacklauncher.recommendations
+android.autoinstalls.config.xiaomi.amelie
+
+# Xiaomi background services
+com.xiaomi.mitv.tvmanager                   # "TV Manager" cleaner
+com.xiaomi.mitv.handbook
+com.xiaomi.amazon.alexa                     # Alexa bridge
+
+# Preloaded apps
+com.xiaomi.mimusic2
+com.google.android.play.games
+com.google.android.videos                   # Play Movies & TV
+fusion.android.tv.demo
+
+# Personal choice: streaming apps not used
+com.spotify.tv.android
+com.aha.mitv
+# com.suntv.sunnxt                         # kept: in use
+# com.suntv.sunnxt.mitv                    # kept: in use
+com.mxtech.videoplayer.television
+com.apple.atve.androidtv.appletv
+com.abc.abcnews
+com.google.android.youtube.tvmusic
