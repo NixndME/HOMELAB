@@ -7,7 +7,7 @@
 # Everything is DISABLED, not uninstalled. Comment out any line you want to keep.
 #
 # Kept by choice: voice assistant (katniss, tv.assistant), Chromecast (mediashell),
-# screen mirroring (milinkservice, smartshare, wfdsinkhelperservice), firmware updates (updateservice).
+# screen mirroring (milinkservice, smartshare, wfdsinkhelperservice).
 
 # Xiaomi + Google telemetry
 com.miui.tv.analytics
@@ -29,6 +29,7 @@ android.autoinstalls.config.xiaomi.amelie
 com.xiaomi.mitv.tvmanager                   # "TV Manager" cleaner
 com.xiaomi.mitv.handbook
 com.xiaomi.amazon.alexa                     # Alexa bridge
+com.xiaomi.mitv.updateservice               # firmware OTA: updates re-enable bloat; also stops security updates
 
 # Preloaded apps
 com.xiaomi.mimusic2
@@ -40,8 +41,14 @@ fusion.android.tv.demo
 com.spotify.tv.android
 com.aha.mitv
 # com.suntv.sunnxt                         # kept: in use
-# com.suntv.sunnxt.mitv                    # kept: in use
+com.suntv.sunnxt.mitv                       # old Xiaomi build (2022), duplicate of com.suntv.sunnxt
+com.xiaomitv.sonyliv                        # old Xiaomi build (2023), duplicate of com.sonyliv
+com.viacom18.tv.voot                        # Voot shut down, moved to JioHotstar
+com.jio.media.stb.ondemand                  # JioCinema: merged into JioHotstar (in.startv.hotstar)
+nl.giejay.android.tv.immich                 # Immich TV: off until the Immich server runs
 com.mxtech.videoplayer.television
 com.apple.atve.androidtv.appletv
 com.abc.abcnews
 com.google.android.youtube.tvmusic
+com.google.android.youtube.tv                # official YouTube: removed with `pm uninstall --user 0` (SmartTube signed in instead);
+                                            # listed so check.sh flags it if an OTA brings it back

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Tile size. Must fit `columns` (config.xml) across the screen: a 1080p TV is 960dp wide minus 112dp of
+  side padding, so each cell is (848 / columns)dp and the card, focused at 1.1x, must stay under that.
+  4 columns: 180 x 101. 6 columns: 124 x 70.
+-->
+<resources>
+    <dimen name="tile_width">124dp</dimen>
+    <dimen name="tile_height">70dp</dimen>
+    <!-- tile_height + 7dp: the app name sits just under the card -->
+    <dimen name="tile_name_top">77dp</dimen>
+    <!-- whole grid item: 8dp padding + tile_name_top + 22dp name + 8dp padding -->
+    <dimen name="tile_row_height">115dp</dimen>
+</resources>

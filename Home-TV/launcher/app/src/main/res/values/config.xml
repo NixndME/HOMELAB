@@ -9,8 +9,10 @@
     <string-array name="dock_apps">
         <item>com.netflix.ninja</item>
         <item>com.amazon.amazonvideo.livingroom</item>
-        <item>org.smarttube.stable</item>  <!-- ad-free YouTube; official app stays in the grid -->
+        <item>org.smarttube.stable</item>  <!-- ad-free YouTube; official app removed -->
         <item>in.startv.hotstar</item>
+        <item>com.sonyliv</item>
+        <item>com.graymatrix.did</item>  <!-- ZEE5 -->
     </string-array>
 
     <!-- Apps never shown as tiles (e.g. the Live TV app, which the Inputs menu already covers). -->
@@ -22,6 +24,7 @@
     <!-- The TV's Live TV / tuner app, offered at the end of the Inputs menu. Leave empty to omit. -->
     <string name="live_tv_package" translatable="false">com.mediatek.wwtv.tvcenter</string>
 
-    <!-- Tiles per row in the grid; the dock always has this many slots. -->
-    <integer name="columns">4</integer>
+    <!-- Tiles per row in the grid; the dock always has this many slots. Changing it? Resize the tiles
+         in res/values/dimens.xml so they still fit. -->
+    <integer name="columns">6</integer>
 </resources>
