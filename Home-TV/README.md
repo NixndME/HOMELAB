@@ -28,6 +28,16 @@ Last synced 2026-10-20 at upstream `f2a336a` (launcher 2.3, versionCode 4). Kept
 
 Free RAM after: ~930 MB (was ~340 MB; PatchWall alone took ~200 MB).
 
+Launcher 2.3 smoothness (2026-10-20, `dumpsys gfxinfo com.gathin.tvhome`, 6 columns, normal motion):
+
+| Moment | Janky frames | p50 | p95 | p99 |
+|---|---|---|---|---|
+| Navigating Home (dock, grid, top bar) | 3% | 6 ms | 10 ms | 17 ms |
+| Pressing Home from SmartTube/Netflix/VLC | 16% | 6 ms | 57 ms | 93 ms |
+
+The short hitch on returning to Home is the tile entrance replay under memory pressure; launcher stays resident (~72 MB).
+If it bothers anyone, try `{"reduced_motion": true}` as a theme (`tools/theme.sh`), which skips that replay.
+
 ## Commands
 
 ```bash
