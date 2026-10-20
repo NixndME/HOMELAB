@@ -1,7 +1,8 @@
 # Home-TV: Android TV debloat
 
 Xiaomi **MiTV-MOOQ0** (croods, Android TV 10), network ADB on port 5555. Based on
-[Gathin23/tv-vibehack](https://github.com/Gathin23/tv-vibehack) (`tools/`, `launcher/`, `examples/` copied from it, MIT, see `LICENSE-tv-vibehack`).
+[Gathin23/cleanyourtv](https://github.com/Gathin23/cleanyourtv) (formerly `tv-vibehack`; `tools/`, `launcher/`, `themes/`, `examples/` copied from it, MIT, see `LICENSE-tv-vibehack`).
+Last synced 2026-10-20 at upstream `f2a336a` (launcher 2.3, versionCode 4). Kept local: `tools/check.sh`, `tools/ui.sh`, `examples/xiaomi-mitv-mooq0/debloat.txt`, the dock in `config.xml`.
 
 ## What was changed (2026-10-18)
 
@@ -19,7 +20,8 @@ Xiaomi **MiTV-MOOQ0** (croods, Android TV 10), network ADB on port 5555. Based o
 | (2026-10-19) Old duplicate Xiaomi builds `com.suntv.sunnxt.mitv`, `com.xiaomitv.sonyliv` and dead Voot disabled | `debloat.txt` | `tools/restore.sh` |
 | (2026-10-19) Firmware OTA `com.xiaomi.mitv.updateservice` disabled so updates stop re-enabling bloat. **No more security/firmware updates**; re-enable to update, then run `check.sh --fix` | `debloat.txt` | `tools/tv.py 'pm enable com.xiaomi.mitv.updateservice'` |
 | (2026-10-19) JioCinema (`com.jio.media.stb.ondemand`) disabled: merged into JioHotstar | `debloat.txt` | `tools/restore.sh` |
-| (2026-10-19) Dock: Netflix, Prime Video, SmartTube, JioHotstar, SonyLIV, ZEE5 (6 columns, tiles shrunk to 124x70dp in `launcher/.../values/dimens.xml`) | `launcher/` | edit `config.xml` + `dimens.xml`, rebuild |
+| (2026-10-19) Dock: Netflix, Prime Video, SmartTube, JioHotstar, SonyLIV, ZEE5 (6 columns; since 2.3 the launcher shrinks tiles itself, `dimens.xml` dropped) | `launcher/` | edit `config.xml`, rebuild |
+| (2026-10-20) Launcher 2.0 → 2.3 from upstream: on-TV layout/motion settings, reorder from the remote, optional app library, clock screensaver, sky backdrop, themes (`tools/theme.sh`), safer install script | `launcher/build-and-install.sh` | reinstall the 2.0 APK from `backup/` |
 | (2026-10-19) LocalSend 1.18.2 (`org.localsend.localsend_app`, open source, LAN-only): send files phone/PC → TV. Open it on the TV, then pick the TV in LocalSend on the phone. Storage permission pre-granted | GitHub release `android-arm32v7.apk` (TV is armeabi-v7a), `b64push.py` + `pm install` | uninstall in Settings → Apps |
 | (2026-10-19) SmartTube: SponsorBlock auto-skips (with notification) sponsor, intro, endcards, subscribe reminders, self-promo; Shorts hidden everywhere and removed from the left menu | in-app settings | SmartTube → Settings → SponsorBlock / General |
 | Animations 0.5x | `settings put global *_animation_scale 0.5` | `tools/restore.sh` |
@@ -39,11 +41,12 @@ tools/restore.sh examples/xiaomi-mitv-mooq0/debloat.txt     # undo everything
 tools/venv/bin/python -I tools/tv.py 'pm enable <package>'  # re-enable one app
 ```
 
-Rebuild launcher (dock order and columns: `launcher/app/src/main/res/values/config.xml`, tile size: `dimens.xml`):
+Rebuild launcher (dock order and columns: `launcher/app/src/main/res/values/config.xml`, or push a theme from `themes/` with `tools/theme.sh`, no rebuild):
 
 ```bash
 export JAVA_HOME=~/.local/share/mise/installs/java/17 ANDROID_HOME=~/Android/Sdk
 export JAVA_TOOL_OPTIONS=-XX:-UseContainerSupport   # JDK 17.0.2 crashes on cgroup v2 without this
+export ANDROID_USER_HOME=~/.config/.android         # the debug key the installed APK is signed with
 launcher/build-and-install.sh
 ```
 
@@ -53,5 +56,6 @@ On Linux the real `adb` works fine and is faster for big APKs:
 ## Gotchas hit here
 - SmartTube menus: `input keyevent DPAD_*` over network ADB arrives as a long press and jumps several rows; `input tap x y` on the node's bounds from `uiautomator dump` is reliable.
 - First port scan with a 1 s timeout missed the TV; mDNS (`avahi-browse -rt _adb._tcp`) found it.
-- No `~/.android/debug.keystore`: created with `keytool` (alias `androiddebugkey`, pass `android`).
+- Two debug keystores exist: the installed launcher is signed by `~/.config/.android/debug.keystore`, not `~/.android/debug.keystore`. Build with `ANDROID_USER_HOME=~/.config/.android` or `pm install -r` fails with a signature mismatch (check: `apksigner verify --print-certs`).
+- Start the adb server with `ADB_VENDOR_KEYS` set (`adb kill-server` first if one is running); otherwise it offers the wrong key and the TV shows an "Allow USB debugging?" prompt over whatever is playing.
 - Firmware updates may re-enable packages or the stock launcher: run `tools/check.sh <list> --fix` (it only re-sets home; if the launcher app itself is gone, run `build-and-install.sh`).

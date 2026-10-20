@@ -1,5 +1,7 @@
-# Windows version of restore.sh: re-enable every package listed in a debloat file, restore the
-# stock launcher as home and reset animation scales. Pass the same list you used with disable.ps1.
+# Windows version of restore.sh: put the TV back the way it was before disable.ps1, from the state
+# recorded at that time - packages that were already disabled stay disabled, Home goes back to the
+# component that owned it and the animation scales go back to their recorded values. Pass the same
+# list you used with disable.ps1.
 #
 # Usage: tools\restore.ps1 -TvHost 192.168.1.50 examples\xiaomi-mi-tv-4a\debloat.txt [-Stock stock.launcher.package]
 param(
@@ -16,13 +18,9 @@ $py = Join-Path $repo 'tools\venv\Scripts\python.exe'
 if (-not $TvHost) { throw 'pass -TvHost <tv ip> or set $env:TV_HOST' }
 $env:TV_HOST = $TvHost
 
-$pkgs = Get-Content $List | ForEach-Object { ($_ -replace '#.*$', '').Trim() } | Where-Object { $_ }
-$cmds = @($pkgs | ForEach-Object { "pm enable $_" }) + @(
-    "pm enable $Stock",
-    "cmd package set-home-activity --user 0 $Stock",
-    'settings put global window_animation_scale 1.0',
-    'settings put global transition_animation_scale 1.0',
-    'settings put global animator_duration_scale 1.0',
-    'pm list packages -d'
-)
+# Same as restore.sh: replay the recorded states instead of enabling the whole list, so packages that
+# were already disabled stay disabled (#239). recovery.py reads and validates the list itself, warns
+# when no record exists and then falls back to the old behaviour.
+$cmds = & $py -I (Join-Path $repo 'tools\recovery.py') --commands $List $Stock
+if ($LASTEXITCODE -ne 0) { throw 'no restore plan was built, the TV was not changed' }
 $cmds | & $py -I (Join-Path $repo 'tools\tv.py') --batch
