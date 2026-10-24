@@ -2,4 +2,3 @@
 # safety net in case anything ever writes local logs/work dirs by mistake.
 logs/
 *.log
-sno-deploy/
