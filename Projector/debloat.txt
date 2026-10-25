@@ -1,0 +1,55 @@
+# XGIMI WK03K (product mirinda, device altai, boot model H0048), Google TV, Android 14 (SDK 34)
+# Firmware UKNV.260612.001, MediaTek m7332, 2 GB RAM, built-in battery.
+#
+# Apply:   TV_HOST=<projector ip> ../Home-TV/tools/disable.sh debloat.txt
+# Undo:    TV_HOST=<projector ip> ../Home-TV/tools/restore.sh debloat.txt com.google.android.apps.tv.launcherx
+# Check:   TV_HOST=<projector ip> ../Home-TV/tools/check.sh debloat.txt
+# Everything is DISABLED, not uninstalled. Comment out any line you want to keep.
+#
+# Stock launcher: com.google.android.apps.tv.launcherx (handled by the launcher step, not here).
+# Nothing was disabled at the factory.
+#
+# Keep, the projector needs them:
+#   com.xgimi.windowsystem (owns the keystone screen, kstActivity), com.xgimi.autokst, com.xgimi.tof
+#   (autofocus calibration), com.xgimi.xgimiservice, com.xgimi.xrmservice, com.xgimi.misckey (remote
+#   hotkeys), com.xgimi.uiconfiguration, com.xgimi.minitvfactory (its provider is queried by others),
+#   com.android.tv.settings (XGIMI build: picture, keystone, focus menus), com.mediatek.*,
+#   com.dolby.android.audio.service, com.google.android.tungsten.setupwraith (disabling it deletes the
+#   Wi-Fi network saved during setup; the launcher step deals with it).
+# Kept by choice: Chromecast (mediashell), voice assistant (katniss, tv.assistant), Play Store.
+#
+# Known quirks:
+# - Disabling dreamx leaves screensaver_components pointing at it. Switch to the AOSP fallback with
+#   tools/tv.py 'settings put secure screensaver_components com.android.dreams.basic/.Colors'
+
+# Google + XGIMI telemetry and feedback
+com.google.android.feedback
+com.android.tv.feedbackconsent
+com.xgimi.bugreportsender                   # XGIMI bug report uploader
+
+# Retail demo, preload installers
+fusion.android.tv.demo                      # store demo mode
+com.xgimi.autoinstall                       # silent partner-app installer
+
+# Preloaded apps and services
+com.xgimi.doubanfm                          # XGIMI "AtvMusic" (Douban FM)
+com.google.android.play.games
+com.google.android.marvin.talkback          # re-enable if you need the screen reader
+com.google.android.apps.tv.dreamx           # ambient mode screensaver (~66 MB), see quirks
+com.google.android.tv.remote.service        # Google TV phone-app remote (~58 MB); keep if you use it
+
+# YouTube: uncomment only AFTER SmartTube is installed (stock YouTube ~270 MB + recommendations ~96 MB)
+# com.google.android.youtube.tv
+# com.google.android.youtube.tvmusic
+
+# Optional: streaming apps. Same choices as the Home TV list? Uncomment what you don't use.
+# com.jio.media.stb.ondemand                # JioCinema: merged into JioHotstar (in.startv.hotstar)
+# com.mxtech.videoplayer.television
+# com.apple.atve.androidtv.appletv
+# com.crunchyroll.crunchyroid
+# com.amazon.amazonvideo.livingroom         # Prime Video
+# com.sonyliv
+# com.graymatrix.did                        # ZEE5
+# com.suntv.sunnxt
+# com.netflix.ninja                         # in use
+# in.startv.hotstar
