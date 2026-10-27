@@ -1,0 +1,27 @@
+# cp: self-hosted clipboard for text, files and links that expire.
+# Runs as its own compose project with hard resource limits, so it can sit next to other
+# stacks (e.g. on the Pi) without affecting them. All site values come from .env.
+name: cp
+services:
+  cp:
+    image: ${CP_IMAGE:-cp:local}
+    build: .
+    container_name: cp
+    restart: always                 # back up by itself after a power cut
+    user: "${CP_UID:-65532}:${CP_GID:-65532}"
+    env_file: .env
+    environment:
+      GOMEMLIMIT: 160MiB            # make the Go GC work harder well before the 256m cap
+    ports:
+      - "127.0.0.1:${CP_PORT:-8090}:8080"   # loopback only: cloudflared is the only way in
+    volumes:
+      - ${CP_DATA_PATH:-./data}:/data
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 256m
+    cpus: 1.0
+    pids_limit: 100
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }

@@ -1,0 +1,7 @@
+{
+  "name": "cp-qa",
+  "private": true,
+  "description": "Headless end-to-end checks for cp (Playwright)",
+  "scripts": { "e2e": "node e2e.js" },
+  "dependencies": { "playwright": "1.64.1" }
+}

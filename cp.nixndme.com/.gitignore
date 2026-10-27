@@ -1,0 +1,9 @@
+# secrets and runtime data never leave this machine
+.env
+data/
+*.key
+qa/node_modules/
+qa/shots/
+qa/fixtures/
+/cp
+data.bak-*/

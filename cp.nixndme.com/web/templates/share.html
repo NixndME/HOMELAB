@@ -1,0 +1,108 @@
+{{define "title"}}{{heading .Share}} · cp{{end}}
+{{define "mainclass"}}{{if or .Locked .Burn}}narrow{{else}}wide-main{{end}}{{end}}
+{{define "content"}}
+{{$s := .Share}}
+{{if .Locked}}
+<section class="card center">
+  <div class="big-icon" aria-hidden="true">🔒</div>
+  <h1>Password required</h1>
+  {{with .Error}}<p class="error" role="alert">{{.}}</p>{{end}}
+  <form method="post" action="/s/{{$s.Slug}}/unlock">
+    <label class="sr-only" for="pw">Password</label>
+    <input id="pw" name="password" type="password" required autofocus autocomplete="off" placeholder="Share password">
+    <button type="submit" class="primary wide">Unlock</button>
+  </form>
+</section>
+{{else if .Burn}}
+<section class="card center">
+  <div class="big-icon" aria-hidden="true">🔥</div>
+  <h1>Read once</h1>
+  <p class="muted">This share self-destructs once opened. After you reveal it you have 15 minutes to read and download it; then it's gone for everyone.</p>
+  <form method="post" action="/s/{{$s.Slug}}/reveal">
+    <button type="submit" class="danger wide">Reveal now</button>
+  </form>
+</section>
+{{else}}
+{{if not .Embed}}
+<section class="share-head">
+  <div>
+    <h1>{{if $s.Title}}<span class="num">#{{$s.PK}}</span> {{end}}{{heading $s}}</h1>
+    <p class="meta">
+      <span class="badge">{{parts $s}}</span>
+      {{if $s.Size}}<span>{{bytes $s.Size}}</span>{{end}}
+      <span>expires <time datetime="{{iso $s.ExpiresAt}}" data-left="{{$s.ExpiresAt}}">{{datetime $s.ExpiresAt}}</time></span>
+      {{if $s.Burn}}<span class="badge warn">read once</span>{{end}}
+      {{if $s.MaxDownloads}}<span>{{$s.Downloads}}/{{$s.MaxDownloads}} downloads</span>{{end}}
+    </p>
+  </div>
+  <div class="actions">
+    {{if gt (len $s.Files) 1}}<a class="btn primary" href="/z/{{$s.Slug}}">⬇ Download all (.zip)</a>{{end}}
+    {{if .Owner}}
+    <button type="button" class="btn" data-copy="{{.URL}}">Copy link</button>
+    <button type="button" class="btn" data-qr="{{$s.Slug}}">QR</button>
+    <a class="btn" href="/">Dashboard</a>
+    {{end}}
+  </div>
+</section>
+{{else if gt (len $s.Files) 1}}
+<div class="share-bar">
+  <span class="muted">{{parts $s}}</span>
+  <a class="btn primary" href="/z/{{$s.Slug}}">⬇ Download all (.zip)</a>
+</div>
+{{end}}
+
+{{with .Text}}
+<section class="card text-card">
+  <div class="text-toolbar">
+    <span class="muted">📝 {{$.Preview.Lines}} line{{if ne $.Preview.Lines 1}}s{{end}}{{if $.Preview.Truncated}} shown · preview truncated, use Show all, Copy all or Download for the full {{bytes .Size}}{{end}}</span>
+    <div class="actions">
+      <button type="button" class="btn primary" data-copy-raw="/r/{{$s.Slug}}">Copy all</button>
+      <a class="btn" href="/d/{{$s.Slug}}/{{.ID}}">Download</a>
+      {{if $.Preview.Truncated}}<button type="button" class="btn" data-show-all="/r/{{$s.Slug}}">Show all</button>{{end}}
+      <button type="button" class="btn" id="wrap-toggle" aria-pressed="false">Wrap</button>
+    </div>
+  </div>
+  {{if $.Preview.HTML}}<div class="code" id="code">{{$.Preview.HTML}}</div>
+  {{else}}<pre class="code plain" id="code">{{$.Preview.Text}}</pre>{{end}}
+</section>
+{{end}}
+{{with .Attachments}}
+<section class="card">
+  <div class="text-toolbar flat">
+    <span class="muted">📄 {{len .}} file{{if ne (len .) 1}}s{{end}}</span>
+  </div>
+  <ul class="file-list">
+    {{range $f := .}}
+    <li>
+      <span class="file-icon" aria-hidden="true">📄</span>
+      <span class="file-name">{{.Name}}</span>
+      <span class="muted">{{bytes .Size}}</span>
+      <span class="actions">
+        {{with previewType .MIME}}<button type="button" class="btn" data-preview="/d/{{$s.Slug}}/{{$f.ID}}?inline=1" data-type="{{.}}" data-name="{{$f.Name}}" data-download="/d/{{$s.Slug}}/{{$f.ID}}">Preview</button>{{end}}
+        <a class="btn primary" href="/d/{{$s.Slug}}/{{.ID}}">Download</a>
+      </span>
+    </li>
+    {{end}}
+  </ul>
+</section>
+{{end}}
+{{with $s.Links}}
+<section class="card">
+  <div class="text-toolbar flat">
+    <span class="muted">🔗 {{len .}} link{{if ne (len .) 1}}s{{end}}</span>
+    <button type="button" class="btn" data-copy="{{$s.LinkURL}}">Copy all</button>
+  </div>
+  <ol class="link-list">
+    {{range .}}
+    <li>
+      <a class="link-url" href="{{.}}" rel="noopener noreferrer nofollow" target="_blank" title="{{.}}">{{.}}</a>
+      <button type="button" class="btn small" data-copy="{{.}}">Copy</button>
+    </li>
+    {{end}}
+  </ol>
+</section>
+{{end}}
+{{end}}
+<dialog id="qr-dialog" class="modal small"><form method="dialog"><h2>Scan to open</h2><img id="qr-img" alt="QR code of the share link" width="320" height="320"><button class="btn wide">Close</button></form></dialog>
+{{end}}
+{{define "scripts"}}<script src="{{asset "share.js"}}"></script>{{end}}

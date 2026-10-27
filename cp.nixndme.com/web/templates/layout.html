@@ -1,0 +1,35 @@
+{{define "layout"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+{{with .CSRF}}<meta name="csrf" content="{{.}}">{{end}}
+<title>{{block "title" .}}cp{{end}}</title>
+<link rel="icon" href="{{asset "icon.svg"}}" type="image/svg+xml">
+<link rel="stylesheet" href="{{asset "app.css"}}">
+<link rel="stylesheet" href="{{asset "chroma.css"}}">
+<script src="{{asset "theme.js"}}"></script>
+</head>
+<body{{if .Embed}} class="embed"{{end}}>
+{{if not .Embed}}<header class="topbar">
+  <a class="brand" href="/"><span class="logo" aria-hidden="true">cp</span><span class="brand-name">clipboard</span></a>
+  <nav>
+    {{if .Nav}}
+    <a href="/" {{if eq .Nav "dashboard"}}aria-current="page"{{end}}>Shares</a>
+    <a href="/settings" {{if eq .Nav "settings"}}aria-current="page"{{end}}>Settings</a>
+    {{end}}
+    <button type="button" class="icon-btn" id="theme-toggle" title="Toggle dark mode" aria-label="Toggle dark mode">◐</button>
+    {{if .Nav}}
+    <form method="post" action="/logout" class="inline"><button type="submit" class="link-btn">Log out</button></form>
+    {{end}}
+  </nav>
+</header>{{end}}
+<main class="{{block "mainclass" .}}{{end}}">
+{{template "content" .}}
+</main>
+<div id="toast" role="status" aria-live="polite"></div>
+<script src="{{asset "app.js"}}"></script>
+{{block "scripts" .}}{{end}}
+</body>
+</html>{{end}}

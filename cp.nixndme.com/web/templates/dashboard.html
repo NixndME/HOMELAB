@@ -1,0 +1,129 @@
+{{define "title"}}Shares · cp{{end}}
+{{define "mainclass"}}wide-main{{end}}
+{{define "content"}}
+<section class="toolbar">
+  <button type="button" class="primary big" id="new-share">＋ New share</button>
+  <input type="search" id="search" placeholder="Search titles, file names, links…" aria-label="Search shares">
+  <div class="tabs" role="tablist" aria-label="Filter">
+    <button role="tab" data-status="active" aria-selected="true">Active</button>
+    <button role="tab" data-status="ended" aria-selected="false">Ended</button>
+    <button role="tab" data-status="" aria-selected="false">All</button>
+  </div>
+</section>
+<section class="usage" aria-label="Storage used">
+  <div class="usage-bar"><span id="usage-fill"></span></div>
+  <span id="usage-text" class="muted">…</span>
+</section>
+<p class="hint drop-hint">Tip: paste (Ctrl+V) anywhere or drop files on this page to share them.</p>
+<section id="shares" class="share-list" aria-live="polite"></section>
+<p id="empty" class="empty" hidden>Nothing here yet. Click <b>New share</b>, paste, or drop a file.</p>
+
+<div id="drop-overlay" hidden><div>Drop files to share</div></div>
+
+<dialog id="new-dialog" class="modal">
+  <form id="new-form" method="dialog" novalidate>
+    <header class="modal-head">
+      <h2>New share</h2>
+      <button type="button" class="icon-btn" data-close aria-label="Close">✕</button>
+    </header>
+    <label class="name-field">Name <span class="hint">(optional)</span>
+      <input id="title" maxlength="200" autocomplete="off" placeholder="Leave empty for an automatic name">
+    </label>
+    <p class="hint compose-hint">Add any mix of text, files and links: they all go into one share.</p>
+    <section class="part" data-part="text">
+      <div class="part-head"><h3>📝 Text</h3><span class="muted" id="text-stats"></span></div>
+      <textarea id="text-input" spellcheck="false" placeholder="Paste anything: notes, YAML, logs… (no line limit)"></textarea>
+      <label class="inline-label">Highlight as
+        <select id="language">
+          <option value="">Auto / plain</option>
+          <option>yaml</option><option>json</option><option>bash</option><option>python</option><option>go</option>
+          <option>javascript</option><option>typescript</option><option>sql</option><option>xml</option><option>html</option>
+          <option>markdown</option><option>ini</option><option>toml</option><option>dockerfile</option><option>diff</option>
+          <option>java</option><option>c</option><option>cpp</option><option>rust</option><option>terraform</option>
+        </select>
+      </label>
+    </section>
+    <section class="part" data-part="files">
+      <div class="part-head"><h3>📄 Files</h3><small class="muted" id="file-limit"></small></div>
+      <label class="dropzone" id="dropzone">
+        <input type="file" id="file-input" multiple>
+        <span>Drop files here or <u>browse</u></span>
+      </label>
+      <ul id="picked" class="picked"></ul>
+    </section>
+    <section class="part" data-part="links">
+      <div class="part-head"><h3>🔗 Links</h3><span class="muted" id="link-stats"></span></div>
+      <textarea id="link-input" class="links" spellcheck="false" placeholder="https://first.example/…&#10;https://second.example/…&#10;(one link per line, as many as you like)"></textarea>
+    </section>
+
+    <details class="options" open>
+      <summary>Options</summary>
+      <div class="grid">
+        <label>Expires in
+          <select id="expiry">
+            <option value="600">10 minutes</option><option value="3600">1 hour</option><option value="21600">6 hours</option>
+            <option value="86400">24 hours</option><option value="259200">3 days</option><option value="604800">7 days</option>
+            <option value="2592000">30 days</option><option value="7776000">90 days</option>
+          </select>
+        </label>
+        <label>Max downloads <input id="max-downloads" type="number" min="0" step="1" value="0" title="0 = unlimited"></label>
+        <label>Share password <input id="share-password" type="password" autocomplete="new-password" placeholder="optional"></label>
+      </div>
+      <label class="check"><input type="checkbox" id="public"> Public link (anyone with the link can open it)</label>
+      <label class="check"><input type="checkbox" id="burn"> Burn after reading (deleted after first open)</label>
+      <p class="hint" id="public-off" hidden>Public sharing is switched off in Settings: links only work while you are logged in.</p>
+    </details>
+
+    <div class="progress" id="progress" hidden><span id="progress-fill"></span><b id="progress-text"></b></div>
+    <p class="error" id="new-error" role="alert" hidden></p>
+    <footer class="modal-foot">
+      <button type="button" class="btn" data-close>Cancel</button>
+      <button type="submit" class="primary" id="create-btn">Create share</button>
+    </footer>
+  </form>
+</dialog>
+
+<dialog id="view-dialog" class="modal view" aria-label="Share">
+  <header class="modal-head">
+    <h2 id="view-title"></h2>
+    <div class="actions">
+      <button type="button" class="btn small" id="view-copy">Copy link</button>
+      <button type="button" class="btn small" id="view-qr">QR</button>
+      <button type="button" class="icon-btn" data-close aria-label="Close">✕</button>
+    </div>
+  </header>
+  <div id="view-body" class="view-body"></div>
+</dialog>
+
+<dialog id="qr-dialog" class="modal small">
+  <form method="dialog"><h2>Scan to open</h2><img id="qr-img" alt="QR code of the share link" width="320" height="320">
+  <p class="muted small-url" id="qr-url"></p><button class="btn wide">Close</button></form>
+</dialog>
+
+<dialog id="log-dialog" class="modal">
+  <form method="dialog">
+    <header class="modal-head"><h2>Access log</h2><button class="icon-btn" aria-label="Close">✕</button></header>
+    <div class="table-wrap"><table class="log"><thead><tr><th>When</th><th>Action</th><th>IP</th><th>Browser</th></tr></thead><tbody id="log-body"></tbody></table></div>
+  </form>
+</dialog>
+
+<dialog id="edit-dialog" class="modal small">
+  <form id="edit-form" method="dialog">
+    <header class="modal-head"><h2>Rename / edit</h2><button type="button" class="icon-btn" data-close aria-label="Close">✕</button></header>
+    <label>Name <input id="edit-title" maxlength="200" autocomplete="off" placeholder="Empty = automatic name"></label>
+    <label>Expire in (from now)
+      <select id="edit-expiry">
+        <option value="">Keep current</option>
+        <option value="3600">1 hour</option><option value="86400">24 hours</option><option value="259200">3 days</option>
+        <option value="604800">7 days</option><option value="2592000">30 days</option><option value="7776000">90 days</option>
+      </select>
+    </label>
+    <label>Max downloads <input id="edit-max" type="number" min="0" step="1"></label>
+    <label>New share password <input id="edit-password" type="password" autocomplete="new-password" placeholder="leave empty to keep"></label>
+    <label class="check"><input type="checkbox" id="edit-clear-password"> Remove password</label>
+    <p class="error" id="edit-error" hidden></p>
+    <footer class="modal-foot"><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="primary">Save</button></footer>
+  </form>
+</dialog>
+{{end}}
+{{define "scripts"}}<script src="{{asset "share.js"}}"></script><script src="{{asset "dashboard.js"}}"></script>{{end}}

@@ -1,0 +1,15 @@
+{{define "title"}}Log in · cp{{end}}
+{{define "mainclass"}}narrow{{end}}
+{{define "content"}}
+<section class="card login">
+  <h1>Log in</h1>
+  {{with .Error}}<p class="error" role="alert">{{.}}</p>{{end}}
+  <form method="post" action="/login" autocomplete="on">
+    <label>Username <input name="username" autocomplete="username" required autofocus value="{{.Username}}"></label>
+    <label>Password <input name="password" type="password" autocomplete="current-password" required></label>
+    <label>2FA code <span class="hint">(only if turned on)</span>
+      <input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]*" maxlength="7"></label>
+    <button type="submit" class="primary wide">Log in</button>
+  </form>
+</section>
+{{end}}

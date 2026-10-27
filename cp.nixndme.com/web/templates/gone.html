@@ -1,0 +1,15 @@
+{{define "title"}}Not found · cp{{end}}
+{{define "mainclass"}}narrow{{end}}
+{{define "content"}}
+<section class="card center">
+  <div class="big-icon" aria-hidden="true">∅</div>
+  {{with .Ended}}
+  <h1>This share has ended</h1>
+  <p class="muted">Its content was deleted{{with .EndReason}} ({{.}}){{end}}{{if .EndedAt}} on {{datetime .EndedAt}}{{end}}.</p>
+  <p><a href="/">Back to your shares</a></p>
+  {{else}}
+  <h1>Nothing here</h1>
+  <p class="muted">This link doesn't exist, has expired, or is not shared.</p>
+  {{end}}
+</section>
+{{end}}

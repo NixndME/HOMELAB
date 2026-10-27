@@ -1,0 +1,78 @@
+{{define "title"}}Settings · cp{{end}}
+{{define "content"}}
+<h1>Settings</h1>
+
+<section class="card">
+  <h2>Sharing &amp; cleanup</h2>
+  <form id="settings-form" class="stack">
+    <label class="check"><input type="checkbox" id="s-public-sharing"> Allow public share links and QR codes</label>
+    <label class="check"><input type="checkbox" id="s-default-public"> New shares are public by default</label>
+    <div class="grid">
+      <label>Default expiry
+        <select id="s-default-expiry">
+          <option value="600">10 minutes</option><option value="3600">1 hour</option><option value="21600">6 hours</option>
+          <option value="86400">24 hours</option><option value="259200">3 days</option><option value="604800">7 days</option>
+          <option value="2592000">30 days</option><option value="7776000">90 days</option>
+        </select>
+      </label>
+      <label>Cleanup runs every
+        <select id="s-cleanup">
+          <option value="60">1 minute</option><option value="300">5 minutes</option><option value="900">15 minutes</option>
+          <option value="3600">1 hour</option>
+        </select>
+      </label>
+    </div>
+    <label class="check"><input type="checkbox" id="s-keep-history"> Keep a history of ended shares (name and size only, content is always deleted)</label>
+    <label>Forget history after (days, 0 = never) <input type="number" id="s-history-days" min="0" max="3650"></label>
+    <div class="row"><button type="submit" class="primary">Save</button><span class="muted" id="settings-msg"></span></div>
+  </form>
+  <hr>
+  <div class="row"><button type="button" class="btn danger-outline" id="clear-history">Clear history now</button></div>
+  <p class="muted" id="limits"></p>
+</section>
+
+<section class="card">
+  <h2>Password</h2>
+  <form id="password-form" class="stack">
+    <label>Current password <input type="password" id="pw-current" autocomplete="current-password" required></label>
+    <label>New password <span class="hint">(at least 8 characters)</span> <input type="password" id="pw-new" autocomplete="new-password" minlength="8" required></label>
+    <label>Repeat new password <input type="password" id="pw-repeat" autocomplete="new-password" minlength="8" required></label>
+    <div class="row"><button type="submit" class="primary">Change password</button><span class="muted" id="pw-msg"></span></div>
+  </form>
+</section>
+
+<section class="card">
+  <h2>Username</h2>
+  <form id="username-form" class="stack">
+    <label>Username <input id="un-new" autocomplete="username" required pattern="[A-Za-z0-9._@\-]{3,64}"></label>
+    <label>Current password <input type="password" id="un-password" autocomplete="current-password" required></label>
+    <div class="row"><button type="submit" class="primary">Change username</button><span class="muted" id="un-msg"></span></div>
+  </form>
+</section>
+
+<section class="card">
+  <h2>Two-factor authentication</h2>
+  <p class="muted" id="totp-status">…</p>
+  <div id="totp-off" hidden>
+    <button type="button" class="primary" id="totp-setup">Set up 2FA</button>
+    <div id="totp-enroll" hidden class="stack">
+      <p>Scan this with an authenticator app (Aegis, Google Authenticator, 1Password…), then enter the 6-digit code.</p>
+      <img id="totp-qr" alt="2FA QR code" width="256" height="256">
+      <p class="muted">Or type the secret: <code id="totp-secret"></code></p>
+      <label>Code <input id="totp-code" inputmode="numeric" maxlength="7" autocomplete="one-time-code"></label>
+      <div class="row"><button type="button" class="primary" id="totp-enable">Turn on 2FA</button><span class="muted" id="totp-msg"></span></div>
+    </div>
+  </div>
+  <form id="totp-on" hidden class="stack">
+    <label>Current password <input type="password" id="totp-password" autocomplete="current-password" required></label>
+    <div class="row"><button type="submit" class="btn danger-outline">Turn off 2FA</button><span class="muted" id="totp-off-msg"></span></div>
+  </form>
+</section>
+
+<section class="card">
+  <h2>Sessions</h2>
+  <p class="muted" id="sessions"></p>
+  <div class="row"><button type="button" class="btn" id="logout-others">Log out all other browsers</button><span class="muted" id="sess-msg"></span></div>
+</section>
+{{end}}
+{{define "scripts"}}<script src="{{asset "settings.js"}}"></script>{{end}}
