@@ -1,54 +1,77 @@
-# Pi Toolkit — init0xff.com Cloudflare Tunnel bootstrap
+# Pi Toolkit: home Raspberry Pi base setup and health check
 
-Rebuilds the Raspberry Pi's local software (Docker + cloudflared) from
-scratch and reconnects it to the existing, stable Cloudflare Tunnel
-(`pi-init0xff`). Safe to re-run any time the Pi itself is rebuilt/reflashed —
-it never touches anything on the Cloudflare side (zone, tunnel, DNS records
-all stay exactly as configured).
+The Pi (Raspberry Pi 5, Ubuntu 24.04, static IP on Ethernet) runs several independent app
+stacks. Power cuts are frequent, so everything must come back on its own, and one app must
+never be able to take another down.
 
-## What it does
-1. Disables WiFi (`nmcli radio wifi off`) if the Pi is wired. Running both
-   eth0 and wlan0 at once causes dual default routes, which caused real
-   intermittent tunnel instability and firewall rules silently not matching
-   depending on which interface traffic egressed from. Diagnosed the hard
-   way — see commit history.
-2. Sets explicit DNS (1.1.1.1 / 8.8.8.8) on the wired connection. A fresh
-   Pi OS image can leave `/etc/resolv.conf` empty with `systemd-resolved`
-   inactive, which makes cloudflared fall back to a much slower internal
-   DNS path on every single request — this looks like generic "slowness"
-   with no obvious cause otherwise.
-3. Removes any old Docker containers/images and the legacy `/root/homelab`
-   reverse-proxy stack, if present (no-ops cleanly if there's nothing there).
-4. Installs Docker, enables it, adds your user to the `docker` group.
-5. Installs `cloudflared` from Cloudflare's official apt repo.
-6. Installs `cloudflared` as a systemd service pointed at the existing
-   tunnel via its token — no local `config.yml` needed, since this tunnel
-   is dashboard-managed.
+## How the Pi is laid out
 
-If things are still slow after this script runs clean, check `ethtool -S eth0`
-for `rx_ip_header_checksum_errors` — a high/climbing count means a bad cable
-or port, not a software problem (this bit us once: 21k+ errors, 50%+ packet
-loss, nothing fixable over SSH).
+One folder and one compose project per app, all with `restart: always`:
 
-## What it does NOT do
-- Does not create a new tunnel, zone, or DNS record. Those already exist
-  and are managed from the Cloudflare Zero Trust dashboard.
-- Does not need Route53/Hostinger touched again.
+| Folder | What | Public access |
+|---|---|---|
+| `~/poc-bible-app` | POC tracker app + Postgres + backups (own repo) | its own `cloudflared` container |
+| `~/cp` | [cp](../cp.nixndme.com), clipboard for text/files/links | its own `cloudflared` container (`cp-tunnel`) |
+| `~/adguard` | [AdGuard Home](../AdGuardHome), DNS ad blocker for the LAN | LAN only (host network, port 53) |
+| `~/spend-grid` | spend-grid (own repo) | LAN only |
 
-## Usage
+Rules every stack follows:
+
+- **Comes back after a power cut**: `restart: always` on every container, Docker enabled at boot.
+  Databases are configured for crash safety (e.g. cp uses SQLite WAL + `synchronous=FULL`).
+- **Isolated**: own compose project, own network, memory/CPU limits, and its **own Cloudflare
+  Tunnel** if it is public. No shared reverse proxy and no host-wide `cloudflared` service, so
+  changing or restarting one app never touches another app's route.
+- **Images come from a registry**: apps are built on a dev machine and pushed to Docker Hub; the
+  Pi only pulls. cp updates itself through `cp-update.timer` (see the cp README).
+- **No site details in git**: IPs, users, passwords and tunnel credentials live in each folder's
+  git-ignored `.env` / `tunnel/`.
+
+## Rebuilding the Pi
+
+1. Flash the OS, set the static IP in netplan, enable SSH with your key.
+2. Run the base setup (idempotent and non-destructive, safe to re-run on the live Pi):
+   ```bash
+   sudo ./setup.sh
+   ```
+   It installs Docker, enables `docker` and `containerd` at boot, adds your user to the `docker`
+   group, blocks WiFi when the cable is in (running both gave two default routes and random
+   tunnel drops), and turns on the persistent journal. It never removes containers or edits
+   the network.
+3. Restore each app folder (its `.env`, data and `tunnel/` from backup) and run
+   `docker compose up -d` in it. Follow that app's README.
+4. Check everything:
+   ```bash
+   ./status.sh
+   ```
+
+## After a power cut, or after any change
+
 ```bash
-export CF_TUNNEL_TOKEN="<paste tunnel token here>"
-sudo -E ./setup.sh
+./status.sh
 ```
 
-Get the token from: **Zero Trust dashboard → Networks → Tunnels →
-`pi-init0xff` → "Install and run a connector" → copy the token.**
-Never commit the token itself to git — export it as an env var each time.
+Read-only. Shows boot settings, every container's state, health, restart policy and compose
+folder, the update timers, and disk/memory. Exits non-zero and prints `!!` lines if a container
+is down or unhealthy, or has a restart policy that would not survive a reboot.
 
-## Adding a new public service afterward
-The dashboard's "Hostname routes" tab looked like self-service but doesn't
-actually wire up DNS + ingress by itself (its own UI warns about this). The
-reliable path: set the tunnel's ingress config and DNS record together via
-the Cloudflare API (two calls — `PUT .../cfd_tunnel/{id}/configurations` for
-ingress, `POST .../dns_records` for the CNAME to `{tunnel_id}.cfargotunnel.com`).
-Ask Claude to do this, or script it yourself with the same two calls.
+## Adding a new public app
+
+Copy the cp pattern ([compose.yml](../cp.nixndme.com/compose.yml)): its own folder, `restart: always`,
+memory/CPU limits, and a `cloudflared` container on the app's own network:
+
+```bash
+cloudflared tunnel create <app>                 # on a machine logged in to Cloudflare
+# put <tunnel-id>.json + config.yml (ingress -> http://<service>:<port>) in ~/<app>/tunnel/
+sudo chown -R 65532:65532 ~/<app>/tunnel && sudo chmod -R go-rwx ~/<app>/tunnel
+```
+
+Then add a proxied CNAME `<app>` → `<tunnel-id>.cfargotunnel.com` in the zone (Cloudflare API or
+dashboard).
+
+## Troubleshooting
+
+- **Everything feels slow**: check `ethtool -S eth0` for `rx_ip_header_checksum_errors`. A high or
+  climbing count means a bad cable or port, not software (once: 21k+ errors, 50%+ packet loss).
+- **DNS**: AdGuard Home listens on the LAN address port 53; `systemd-resolved` keeps its own stub on
+  127.0.0.53, so they do not clash. Test with `dig @<pi-ip> example.com`.

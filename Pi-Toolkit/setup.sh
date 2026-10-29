@@ -1,85 +1,61 @@
 #!/usr/bin/env bash
-# Idempotent Raspberry Pi bootstrap for the init0xff.com Cloudflare Tunnel setup.
+# Idempotent, non-destructive base setup for the home Raspberry Pi (Ubuntu or Raspberry Pi OS).
 #
-# Re-run this any time you rebuild the Pi (fresh OS flash, reset SD card, etc).
-# It never touches Cloudflare's side (zone, tunnel, DNS) - that's already
-# created once and stays stable. This script only rebuilds the LOCAL software:
-# Docker + cloudflared, connected to the existing tunnel via its token.
+# Safe to re-run on the live Pi: it never stops, removes or recreates containers, images or
+# volumes, and never edits the network config. It only makes sure the host can run the app
+# stacks and brings them back after a power cut:
+#   - Docker installed, and docker + containerd enabled at boot
+#   - your user in the docker group
+#   - WiFi blocked when the Pi is wired (two default routes caused tunnel drops before)
+#   - persistent systemd journal, so logs from before a power cut survive
 #
-# Usage:
-#   export CF_TUNNEL_TOKEN="<token from Cloudflare Zero Trust dashboard>"
-#   sudo -E ./setup.sh
+# Each app (cp, AdGuard Home, ...) is its own compose project in ~/<app> with
+# `restart: always` and, if public, its own cloudflared container. See README.md.
 #
-# Get the token from: Zero Trust dashboard -> Networks -> Tunnels -> pi-init0xff
-# -> "Install and run a connector" -> copy the token (long string after --token).
+# Usage: sudo ./setup.sh
 
 set -euo pipefail
 
 if [ "$(id -u)" -ne 0 ]; then
-  echo "Run as root: sudo -E ./setup.sh" >&2
+  echo "Run as root: sudo ./setup.sh" >&2
   exit 1
 fi
-
-if [ -z "${CF_TUNNEL_TOKEN:-}" ]; then
-  echo "CF_TUNNEL_TOKEN is not set. Export it first (see header of this script)." >&2
-  exit 1
-fi
-
-echo "== Disabling WiFi (Ethernet-only) =="
-# Running both eth0 and wlan0 simultaneously causes dual default routes and
-# intermittent connection instability (found the hard way: random tunnel
-# drops and firewall rules silently not matching depending on which
-# interface traffic happened to egress from). If this Pi is wired, WiFi
-# should stay off.
-if command -v nmcli >/dev/null 2>&1; then
-  nmcli radio wifi off || true
-fi
-
-echo "== Ensuring DNS is actually configured =="
-# A fresh Pi OS image / NetworkManager profile can leave /etc/resolv.conf
-# empty with systemd-resolved inactive, which makes cloudflared fall back to
-# a much slower internal DNS path on every single request. Set explicit
-# resolvers on the wired connection so this can't silently regress.
-ETH_CON=$(nmcli -t -f NAME,DEVICE con show --active 2>/dev/null | awk -F: '$2=="eth0"{print $1}' | head -1)
-if [ -n "$ETH_CON" ]; then
-  nmcli con modify "$ETH_CON" ipv4.dns "1.1.1.1 8.8.8.8" ipv4.ignore-auto-dns no || true
-  nmcli con up "$ETH_CON" || true
-fi
-
-echo "== Removing any previous docker-based reverse proxy / homelab stack =="
-if command -v docker >/dev/null 2>&1; then
-  docker ps -aq | xargs -r docker rm -f
-  docker images -q | xargs -r docker rmi -f
-fi
-rm -rf /root/homelab
-
-echo "== Installing Docker (if not already present) =="
-if ! command -v docker >/dev/null 2>&1; then
-  curl -fsSL https://get.docker.com | sh
-fi
-systemctl enable --now docker
 
 REAL_USER="${SUDO_USER:-root}"
-if [ "$REAL_USER" != "root" ]; then
+WIRED_IF="${WIRED_IF:-eth0}"
+
+echo "== Docker =="
+if ! command -v docker >/dev/null 2>&1; then
+  curl -fsSL https://get.docker.com | sh
+else
+  echo "already installed: $(docker --version)"
+fi
+# Containers with `restart: always` only come back after a power cut if the daemon starts at boot.
+systemctl enable docker.service containerd.service
+systemctl is-active --quiet docker || systemctl start docker
+if [ "$REAL_USER" != "root" ] && ! id -nG "$REAL_USER" | grep -qw docker; then
   usermod -aG docker "$REAL_USER"
+  echo "added $REAL_USER to the docker group (log in again to use it)"
 fi
 
-echo "== Installing cloudflared (if not already present) =="
-if ! command -v cloudflared >/dev/null 2>&1; then
-  mkdir -p --mode=0755 /usr/share/keyrings
-  curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg -o /usr/share/keyrings/cloudflare-main.gpg
-  OS_CODENAME=$(. /etc/os-release && echo "$VERSION_CODENAME")
-  echo "deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared ${OS_CODENAME} main" \
-    > /etc/apt/sources.list.d/cloudflared.list
-  apt-get update -qq
-  apt-get install -y cloudflared
+echo "== WiFi =="
+# Running eth0 and wlan0 together gave two default routes: random tunnel drops and firewall
+# rules matching only on one interface. If the cable is in, keep WiFi off (rfkill state persists).
+if [ "$(cat "/sys/class/net/$WIRED_IF/carrier" 2>/dev/null || echo 0)" = "1" ] && command -v rfkill >/dev/null 2>&1; then
+  rfkill block wifi
+  echo "wired on $WIRED_IF: WiFi blocked"
+else
+  echo "no carrier on $WIRED_IF (or no rfkill): WiFi left as is"
 fi
 
-echo "== Connecting cloudflared to the existing tunnel (remote-managed, no local config.yml) =="
-# Wipe any previous service pointing at a different/old token before reinstalling.
-cloudflared service uninstall 2>/dev/null || true
-cloudflared service install "$CF_TUNNEL_TOKEN"
-systemctl enable --now cloudflared
+echo "== Persistent journal =="
+if [ ! -d /var/log/journal ]; then
+  mkdir -p /var/log/journal
+  systemd-tmpfiles --create --prefix /var/log/journal
+  systemctl restart systemd-journald
+  echo "enabled"
+else
+  echo "already enabled"
+fi
 
-echo "== Done. Check status with: systemctl status cloudflared =="
-echo "== Manage public hostnames from: Zero Trust dashboard -> Networks -> Tunnels -> pi-init0xff -> Public Hostname =="
+echo "== Done. Check every stack with: ./status.sh =="
