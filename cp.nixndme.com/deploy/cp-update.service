@@ -1,0 +1,14 @@
+# Pulls the latest cp image from Docker Hub and recreates the container only if it changed.
+# Install: see README "Deploy on a Raspberry Pi". Adjust User/WorkingDirectory to your host.
+[Unit]
+Description=Pull the latest cp image and recreate cp if it changed
+Wants=network-online.target docker.service
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+User=pi
+WorkingDirectory=/home/pi/cp
+ExecStart=/usr/bin/docker compose pull -q cp
+ExecStart=/usr/bin/docker compose up -d
+ExecStartPost=/usr/bin/docker image prune -f

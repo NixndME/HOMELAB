@@ -1,0 +1,7 @@
+# Copy to tunnel/config.yml (git-ignored) next to <tunnel-id>.json from `cloudflared tunnel create`.
+tunnel: <tunnel-id>
+credentials-file: /etc/cloudflared/<tunnel-id>.json
+ingress:
+  - hostname: cp.example.com
+    service: http://cp:8080
+  - service: http_status:404

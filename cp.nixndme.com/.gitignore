@@ -7,3 +7,4 @@ qa/shots/
 qa/fixtures/
 /cp
 data.bak-*/
+tunnel/

@@ -3,3 +3,6 @@ data
 qa
 *.md
 .git
+data*
+tunnel
+deploy

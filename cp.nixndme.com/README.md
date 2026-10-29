@@ -30,23 +30,60 @@ save a link from any browser; pick it up later from another machine. Everything 
 
 ## Run it
 
+The host only needs `compose.yml`, `.env` and (for the tunnel) a `tunnel/` folder. The image is
+always pulled from Docker Hub (`nixndme/cp`); nothing is built on the host.
+
 ```sh
+mkdir -p ~/cp/data ~/cp/tunnel && cd ~/cp     # copy compose.yml and .env.example here
 cp .env.example .env      # set CP_BASE_URL, CP_ADMIN_USER, CP_ADMIN_PASSWORD, CP_UID/CP_GID
-mkdir -p data
-docker compose up -d --build
+docker compose up -d
 ```
 
-Point a Cloudflare Tunnel ingress rule at `http://localhost:${CP_PORT}`. The admin variables are
-only read on first boot; afterwards change the password in Settings.
+The admin variables are only read on first boot; afterwards change the password in Settings.
 
 Forgot the password? `docker compose run --rm -e CP_NEW_PASSWORD='…' cp reset-password`
 (turns 2FA off and logs out every session).
 
-## Multi-arch image (amd64 + arm64 for a Raspberry Pi)
+### Dedicated Cloudflare Tunnel
+
+cp brings its own `cloudflared` container (`tunnel` profile, on by default via `COMPOSE_PROFILES`),
+so it never shares or changes another stack's tunnel:
 
 ```sh
-docker buildx build --platform linux/amd64,linux/arm64 -t <user>/cp:<tag> --push .
+cloudflared tunnel create cp                      # on any machine logged in to Cloudflare
+cp ~/.cloudflared/<tunnel-id>.json tunnel/        # credentials
+cp deploy/tunnel-config.example.yml tunnel/config.yml   # fill in the id and hostname
+sudo chown -R 65532:65532 tunnel && sudo chmod -R go-rwx tunnel   # cloudflared runs as 65532
 ```
+
+Then point the hostname at it: a proxied CNAME `cp` → `<tunnel-id>.cfargotunnel.com`.
+
+### Survives power cuts
+
+Both containers use `restart: always` and Docker is enabled at boot, so they come back by themselves.
+SQLite runs in WAL mode with `synchronous=FULL`, and a sweep at startup removes half-written files.
+
+### Automatic updates
+
+`deploy/cp-update.timer` checks Docker Hub every 10 minutes (and 3 minutes after boot), pulls
+`nixndme/cp:latest` and recreates only cp's own containers when the image changed:
+
+```sh
+# edit User= and WorkingDirectory= in deploy/cp-update.service first
+sudo cp deploy/cp-update.service deploy/cp-update.timer /etc/systemd/system/
+sudo systemctl daemon-reload && sudo systemctl enable --now cp-update.timer
+```
+
+## Release (amd64 + arm64)
+
+Build and push from a dev machine; hosts pick it up within ~10 minutes:
+
+```sh
+docker buildx build --platform linux/amd64,linux/arm64 \
+  -t nixndme/cp:latest -t nixndme/cp:$(git rev-parse --short HEAD) --push .
+```
+
+Roll back by setting `CP_IMAGE=nixndme/cp:<old-sha>` in `.env` and running `docker compose up -d`.
 
 ## Tests
 
