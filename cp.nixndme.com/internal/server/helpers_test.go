@@ -43,7 +43,8 @@ func newEnv(t *testing.T, tweak ...func(*config.Config)) *env {
 	t.Helper()
 	dir := t.TempDir()
 	cfg := config.Config{Addr: ":0", DataDir: dir, KeyFile: filepath.Join(dir, "secret.key"), BaseURL: "http://cp.test",
-		MaxFileBytes: 4 << 20, ChunkBytes: 1 << 20, StorageBytes: 64 << 20, MaxFiles: 5}
+		MaxFileBytes: 4 << 20, ChunkBytes: 1 << 20, StorageBytes: 64 << 20, MaxFiles: 5,
+		LiveSTUN: []string{"stun:stun.example.org:3478"}}
 	for _, f := range tweak {
 		f(&cfg)
 	}

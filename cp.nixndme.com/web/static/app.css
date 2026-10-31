@@ -221,3 +221,24 @@ textarea.links { min-height: 160px; white-space: pre; }
 
 .name-field { margin-bottom: .5rem; }
 .name-field input { font-size: 1rem; font-weight: 600; }
+
+/* live transfer */
+.live-intro { margin-top: -.25rem; }
+.live-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem; align-items: start; }
+.live-grid .card { margin: 0; }
+.live-pickers { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; margin-bottom: .75rem; }
+.live-pickers .dropzone { position: relative; padding: 1.4rem .75rem; }
+.live-summary { margin: 0 0 .75rem; padding: .5rem .7rem; background: var(--surface-2); border-radius: 8px; font-weight: 550; word-break: break-word; }
+.live-status { font-weight: 550; margin: 0 0 .5rem; word-break: break-word; }
+.live-offers { list-style: none; padding: 0; margin: 0 0 .5rem; display: grid; gap: .5rem; }
+.live-offers li { display: flex; align-items: center; gap: .75rem; padding: .6rem .8rem; background: var(--surface-2); border-radius: 10px; }
+.offer-text { flex: 1; min-width: 0; }
+.offer-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.offer-meta { color: var(--muted); font-size: .82rem; }
+.small-empty { padding: 1.5rem 1rem; margin: 0 0 .5rem; }
+.live-actions { display: flex; gap: .6rem; justify-content: flex-end; margin-top: .75rem; }
+#send-run .progress, #recv-run .progress { margin-bottom: .5rem; }
+@media (max-width: 640px) {
+  .live-grid { grid-template-columns: 1fr; }
+  .live-offers li { flex-direction: column; align-items: stretch; }
+}

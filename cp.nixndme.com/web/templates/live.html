@@ -1,0 +1,54 @@
+{{define "title"}}Live transfer · cp{{end}}
+{{define "content"}}
+<div id="live" data-ice="{{.ICE}}">
+<h1>Live transfer</h1>
+<p class="hint live-intro">Send big files or whole folders straight from one device to another on your home
+  network. Open this page on both devices; the data goes device to device and never touches the server.</p>
+<p class="error" id="live-unsupported" hidden>This browser cannot do live transfers (no WebRTC).</p>
+
+<div class="live-grid">
+<section class="card live-card" id="send-card" aria-labelledby="send-h">
+  <h2 id="send-h">⬆️ Send</h2>
+  <div id="send-pick">
+    <div class="live-pickers">
+      <label class="dropzone" id="send-drop">
+        <input type="file" id="pick-files" multiple>
+        <span>📄 Choose files</span>
+      </label>
+      <label class="dropzone" id="pick-folder-label">
+        <input type="file" id="pick-folder" webkitdirectory>
+        <span>📁 Choose a folder</span>
+      </label>
+    </div>
+    <p class="live-summary" id="send-summary" hidden></p>
+    <button type="button" class="primary wide" id="send-start" disabled>Start sending</button>
+  </div>
+  <div id="send-run" hidden>
+    <p class="live-status" id="send-status" role="status"></p>
+    <div class="progress" id="send-progress" hidden><span></span><b></b></div>
+    <p class="hint" id="send-keep">Keep this tab open until the other device has everything.</p>
+    <button type="button" class="btn wide" id="send-cancel">Cancel</button>
+  </div>
+</section>
+
+<section class="card live-card" id="recv-card" aria-labelledby="recv-h">
+  <h2 id="recv-h">⬇️ Receive</h2>
+  <div id="recv-pick">
+    <ul class="live-offers" id="recv-offers" aria-live="polite"></ul>
+    <p class="empty small-empty" id="recv-empty">Nothing is waiting. Start sending on the other device; it shows up here.</p>
+    <p class="hint" id="recv-where"></p>
+  </div>
+  <div id="recv-run" hidden>
+    <p class="live-status" id="recv-status" role="status"></p>
+    <div class="progress" id="recv-progress" hidden><span></span><b></b></div>
+    <ul class="file-list" id="recv-saved" hidden></ul>
+    <div class="live-actions">
+      <button type="button" class="btn" id="recv-cancel">Cancel</button>
+      <button type="button" class="btn" id="recv-clear" hidden>Done, free the space</button>
+    </div>
+  </div>
+</section>
+</div>
+</div>
+{{end}}
+{{define "scripts"}}<script src="{{asset "zip.js"}}"></script><script src="{{asset "live-sink.js"}}"></script><script src="{{asset "live-peer.js"}}"></script><script src="{{asset "live.js"}}"></script>{{end}}

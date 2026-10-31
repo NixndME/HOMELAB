@@ -12,6 +12,7 @@ import (
 
 	"cpshare/internal/auth"
 	"cpshare/internal/config"
+	"cpshare/internal/live"
 	"cpshare/internal/store"
 	"cpshare/internal/vault"
 )
@@ -37,6 +38,7 @@ type Server struct {
 	totp     *auth.TOTPVerifier
 	kick     chan struct{} // asks the cleanup loop to run now
 	uploadMu sync.Map      // blob id -> *sync.Mutex, serialises chunks of one upload
+	live     *live.Hub     // Live Transfer meeting point (in memory)
 	origin   string
 }
 
@@ -56,6 +58,7 @@ func New(cfg config.Config, st *store.Store, v *vault.Vault, log *slog.Logger, k
 		unlock:  auth.NewLockout(10, 15*time.Minute, 15*time.Minute),
 		public:  auth.NewRateLimiter(120, 60),
 		totp:    auth.NewTOTPVerifier(),
+		live:    newLiveHub(),
 		origin:  u.Scheme + "://" + u.Host,
 	}, nil
 }
@@ -77,6 +80,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /settings", s.requirePage(s.settingsPage))
 
 	s.apiRoutes(mux)
+	s.liveRoutes(mux)
 	s.publicRoutes(mux)
 	return s.secure(mux)
 }

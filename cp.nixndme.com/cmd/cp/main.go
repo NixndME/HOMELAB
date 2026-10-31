@@ -70,6 +70,7 @@ func serve(cfg config.Config, log *slog.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 	go srv.RunCleanup(ctx)
+	go srv.RunLiveSweep(ctx)
 
 	httpSrv := &http.Server{
 		Addr:              cfg.Addr,
@@ -92,6 +93,7 @@ func serve(cfg config.Config, log *slog.Logger) error {
 		log.Info("shutting down")
 		shutCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
+		srv.CloseLive() // end open Live Transfer event streams so Shutdown is not held up
 		return httpSrv.Shutdown(shutCtx)
 	}
 	return nil

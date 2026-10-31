@@ -17,6 +17,7 @@
   <nav>
     {{if .Nav}}
     <a href="/" {{if eq .Nav "dashboard"}}aria-current="page"{{end}}>Shares</a>
+    <a href="/live" {{if eq .Nav "live"}}aria-current="page"{{end}}>Live</a>
     <a href="/settings" {{if eq .Nav "settings"}}aria-current="page"{{end}}>Settings</a>
     {{end}}
     <button type="button" class="icon-btn" id="theme-toggle" title="Toggle dark mode" aria-label="Toggle dark mode">◐</button>
