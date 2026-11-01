@@ -72,6 +72,12 @@ services:
           echo "cp-turn: set CP_LIVE_TURN_SECRET (32+ letters/digits) and CP_TURN_LISTEN_IP in .env" >&2
           exit 1
         fi
+        # After a power cut Docker can start this before the LAN address is up; coturn would
+        # then run without its sockets, so wait for the address first.
+        until ip -4 -o addr show | grep -q " inet $$TURN_IP/"; do
+          echo "cp-turn: waiting for $$TURN_IP to come up" >&2
+          sleep 2
+        done
         exec docker-entrypoint.sh "$$@"
       - cp-turn
     command:
