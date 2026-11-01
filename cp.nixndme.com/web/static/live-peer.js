@@ -6,8 +6,8 @@ const LivePeer = (() => {
   const root = document.getElementById('live');
   const ICE = (() => { try { return JSON.parse(root.dataset.ice || '[]'); } catch (e) { return []; } })();
   const CONNECT_TIMEOUT_MS = 30000;
-  const NO_ROUTE = 'The two devices could not reach each other directly. Make sure both are on the same ' +
-    'home network (not a guest Wi-Fi with client isolation) and that no VPN is running.';
+  const NO_ROUTE = 'The two devices could not connect. Usually a firewall on one of them is blocking it, ' +
+    'or they are not on the same home network (guest Wi-Fi, VPN). Reload both pages and try again.';
 
   const supported = () => typeof window.RTCPeerConnection === 'function';
 

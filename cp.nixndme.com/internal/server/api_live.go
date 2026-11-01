@@ -43,12 +43,29 @@ func (s *Server) liveRoutes(mux *http.ServeMux) {
 	api("DELETE /api/live/{id}", s.closeLive)
 }
 
-func (s *Server) livePage(w http.ResponseWriter, r *http.Request) {
-	servers := []map[string]string{}
+// iceServer is one RTCIceServer entry as the browser's RTCPeerConnection expects it.
+type iceServer struct {
+	URLs       []string `json:"urls"`
+	Username   string   `json:"username,omitempty"`
+	Credential string   `json:"credential,omitempty"`
+}
+
+// iceServers lists the STUN servers and, when a relay is configured, the relay with a fresh
+// short-lived login. Only logged-in owners get this page, so only they can use the relay.
+func (s *Server) iceServers() []iceServer {
+	servers := []iceServer{}
 	for _, u := range s.cfg.LiveSTUN {
-		servers = append(servers, map[string]string{"urls": u})
+		servers = append(servers, iceServer{URLs: []string{u}})
 	}
-	ice, _ := json.Marshal(servers) // a slice of string maps always marshals
+	if len(s.cfg.LiveTURN) > 0 {
+		user, pass := live.TURNCredential(s.cfg.LiveTURNSecret, s.now(), live.TURNCredentialTTL)
+		servers = append(servers, iceServer{URLs: s.cfg.LiveTURN, Username: user, Credential: pass})
+	}
+	return servers
+}
+
+func (s *Server) livePage(w http.ResponseWriter, r *http.Request) {
+	ice, _ := json.Marshal(s.iceServers()) // plain strings always marshal
 	s.render(w, http.StatusOK, "live", map[string]any{
 		"CSRF": ownerFrom(r.Context()).CSRF, "Nav": "live", "ICE": string(ice),
 	})

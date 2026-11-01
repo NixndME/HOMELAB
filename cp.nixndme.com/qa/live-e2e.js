@@ -4,6 +4,9 @@
 //
 //   LIVE_URL=http://localhost:18090 LIVE_USER=… LIVE_PASS=… node live-e2e.js [MB]
 //   LIVE_PAIRS=firefox:webkit,chromium:firefox   choose sender:receiver engine pairs
+//   LIVE_RELAY_ONLY=1   force every connection through the TURN relay (CP_LIVE_TURN), as when a
+//                       device firewall blocks direct connections
+//   LIVE_TIMEOUT_MS=60000   give up on a transfer sooner (default 10 minutes)
 //
 // Point it at a throwaway local instance (see README "Tests"); it never touches .env.
 const { chromium, firefox, webkit } = require('playwright');
@@ -18,9 +21,10 @@ const USER = process.env.LIVE_USER;
 const PASS = process.env.LIVE_PASS;
 const BIG_MB = Number(process.argv[2] || 64);
 const MB = 1 << 20;
-const TIMEOUT = 10 * 60 * 1000;
+const TIMEOUT = Number(process.env.LIVE_TIMEOUT_MS || 10 * 60 * 1000);
 const FOLDER_FILES = ['video/clip ü 1.bin', 'notes.txt', 'empty.dat'];
 const MANY = 3000; // a file list far bigger than one data channel message
+const RELAY_ONLY = process.env.LIVE_RELAY_ONLY === '1';
 
 let failed = 0;
 const check = (ok, what) => { console.log(`  ${ok ? 'OK  ' : 'FAIL'} ${what}`); if (!ok) failed++; };
@@ -66,7 +70,15 @@ const engines = {
 };
 const closeCtx = (ctx) => (ctx.browser() ? ctx.browser().close() : ctx.close());
 
+// Same as a browser whose direct paths are all blocked: only relay candidates may be used.
+const forceRelay = () => {
+  const Native = window.RTCPeerConnection;
+  window.RTCPeerConnection = function (cfg) { return new Native({ ...cfg, iceTransportPolicy: 'relay' }); };
+  window.RTCPeerConnection.prototype = Native.prototype;
+};
+
 async function loggedIn(ctx) {
+  if (RELAY_ONLY) await ctx.addInitScript(forceRelay);
   const page = await ctx.newPage();
   page.on('pageerror', (e) => console.log('    page error:', e.message));
   await page.goto(BASE + '/login');
@@ -168,6 +180,7 @@ function verifyLoose(srcs) {
   if (!USER || !PASS) { console.error('set LIVE_USER and LIVE_PASS'); process.exit(2); }
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'cp-live-fix-'));
   const fx = fixtures(root);
+  if (RELAY_ONLY) console.log('relay only: every connection goes through the TURN relay');
   const pairs = (process.env.LIVE_PAIRS || 'firefox:webkit,webkit:firefox,firefox:chromium,chromium:webkit').split(',');
   for (const pair of pairs) {
     const [s, r] = pair.split(':');

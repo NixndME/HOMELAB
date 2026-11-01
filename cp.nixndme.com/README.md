@@ -53,7 +53,41 @@ laptop A ════════════ file data, directly over the LAN �
 - `CP_LIVE_STUN` (default: Cloudflare's public STUN server) only helps each browser learn its own
   address when local discovery is blocked; no file data goes there. Set `CP_LIVE_STUN=none` to use
   local network addresses only.
-- If devices cannot connect: same Wi-Fi/LAN (not a guest network with client isolation), no VPN.
+- If devices cannot connect directly (most often a laptop firewall such as `ufw` or Windows
+  Firewall dropping incoming traffic), the optional [relay](#relay) on the Pi carries the data
+  instead. Without it: allow incoming UDP from the LAN on that device, use the same Wi-Fi/LAN (not
+  a guest network with client isolation), and no VPN.
+
+### Relay
+
+A small TURN relay (coturn, compose profile `turn`) on the Pi, used only when the direct path fails.
+Each browser connects **out** to the relay, which firewalls allow, and the relay forwards the data:
+
+```
+laptop A ──▶ relay (Pi, LAN) ──▶ laptop B        still end-to-end encrypted (DTLS); nothing stored
+```
+
+- Home network only: it listens on the Pi's LAN address (`CP_TURN_LISTEN_IP`) and forwards only to
+  `CP_TURN_ALLOWED_PEERS`; anything else (internet, Docker networks, loopback) is refused.
+- No accounts: cp hands each Live page a login valid for 24 hours, signed with
+  `CP_LIVE_TURN_SECRET` (TURN REST scheme), so only someone logged in to cp can use the relay.
+- Limits: 8 relay connections per login, 32 in total, 128 MB RAM, one CPU.
+- The browsers pick it automatically; a direct connection is always tried and preferred.
+
+Turn it on (on the Pi, in `.env`):
+
+```sh
+CP_LIVE_TURN_SECRET=$(openssl rand -hex 32)     # paste the value; letters and digits only
+CP_LIVE_TURN=turn:<pi-lan-ip>:3478?transport=udp,turn:<pi-lan-ip>:3478?transport=tcp
+CP_TURN_LISTEN_IP=<pi-lan-ip>
+CP_TURN_ALLOWED_PEERS=<lan-first>-<lan-last>   # e.g. 192.168.0.0-192.168.0.255
+COMPOSE_PROFILES=tunnel,turn
+```
+
+then `docker compose up -d`. The relay refuses to start without a 32+ character secret and a listen
+address. To rotate the secret, put a new value in `.env` and run `docker compose up -d`; open Live
+pages need a reload. If the Pi itself runs a firewall, allow UDP+TCP 3478 and UDP
+49160-49200 from the LAN. The Pi needs a fixed LAN address (DHCP reservation).
 
 ## Run it
 
@@ -87,7 +121,7 @@ Then point the hostname at it: a proxied CNAME `cp` → `<tunnel-id>.cfargotunne
 
 ### Survives power cuts
 
-Both containers use `restart: always` and Docker is enabled at boot, so they come back by themselves.
+All containers use `restart: always` and Docker is enabled at boot, so they come back by themselves.
 SQLite runs in WAL mode with `synchronous=FULL`, and a sweep at startup removes half-written files.
 
 ### Automatic updates
@@ -127,4 +161,7 @@ docker build -t cp-live-test . && docker run -d --name cp-live-test -p 127.0.0.1
   -e CP_BASE_URL=http://localhost:18090 -e CP_ADMIN_USER=tester -e CP_ADMIN_PASSWORD=<pick-one> cp-live-test
 docker run --rm --network host --ipc=host -v "$PWD/qa":/qa:ro -w /qa -e LIVE_USER=tester -e LIVE_PASS=<pick-one> \
   mcr.microsoft.com/playwright:v1.64.1-noble sh -c 'apt-get -qq update && apt-get -qq install -y unzip && node live-e2e.js 64'
+# Same, forced through the relay (as behind a blocking firewall): start the relay with the turn
+# profile on this machine's LAN IP, give the cp container CP_LIVE_TURN + CP_LIVE_TURN_SECRET, and add
+# -e LIVE_RELAY_ONLY=1 to the Playwright run.
 ```

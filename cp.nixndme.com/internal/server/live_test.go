@@ -3,12 +3,16 @@ package server
 import (
 	"bufio"
 	"context"
+	"encoding/json"
+	"html"
 	"net/http"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
 
 	"cpshare/internal/config"
+	"cpshare/internal/live"
 )
 
 type liveOpen struct {
@@ -77,7 +81,7 @@ func TestLivePageNeedsLogin(t *testing.T) {
 	if r.status != http.StatusOK {
 		t.Fatalf("live page: %d", r.status)
 	}
-	mustContain(t, r.body, `data-ice="[{&#34;urls&#34;:&#34;stun:stun.example.org:3478&#34;}]"`)
+	mustContain(t, r.body, `data-ice="[{&#34;urls&#34;:[&#34;stun:stun.example.org:3478&#34;]}]"`)
 }
 
 func TestLiveHandshakeIsRelayed(t *testing.T) {
@@ -184,4 +188,49 @@ func TestLiveWritesNeedCSRF(t *testing.T) {
 func TestLiveICEConfig(t *testing.T) {
 	e := newEnv(t, func(c *config.Config) { c.LiveSTUN = nil })
 	mustContain(t, e.get(e.owner, "/live").body, `data-ice="[]"`)
+}
+
+var dataICE = regexp.MustCompile(`data-ice="([^"]*)"`)
+
+// pageICE returns the ICE servers the Live page hands to the browser.
+func (e *env) pageICE() []iceServer {
+	e.t.Helper()
+	m := dataICE.FindStringSubmatch(e.get(e.owner, "/live").body)
+	if m == nil {
+		e.t.Fatal("no data-ice on the Live page")
+	}
+	var servers []iceServer
+	if err := json.Unmarshal([]byte(html.UnescapeString(m[1])), &servers); err != nil {
+		e.t.Fatalf("data-ice is not JSON: %v", err)
+	}
+	return servers
+}
+
+func TestLiveICEOffersRelayWithShortLivedLogin(t *testing.T) {
+	const secret = "0123456789abcdef0123456789abcdef"
+	relay := []string{"turn:192.0.2.10:3478?transport=udp", "turn:192.0.2.10:3478?transport=tcp"}
+	e := newEnv(t, func(c *config.Config) { c.LiveTURN = relay; c.LiveTURNSecret = secret })
+
+	servers := e.pageICE()
+	if len(servers) != 2 || servers[0].URLs[0] != "stun:stun.example.org:3478" || servers[0].Username != "" {
+		t.Fatalf("servers = %+v", servers)
+	}
+	got := servers[1]
+	user, pass := live.TURNCredential(secret, time.Unix(e.clock.Unix(), 0), live.TURNCredentialTTL)
+	if strings.Join(got.URLs, ",") != strings.Join(relay, ",") || got.Username != user || got.Credential != pass {
+		t.Fatalf("relay entry = %+v, want user %q", got, user)
+	}
+
+	e.advance(time.Hour)
+	if later := e.pageICE()[1]; later.Username == user || later.Credential == pass {
+		t.Fatal("a later page load reused the same relay login")
+	}
+}
+
+func TestLiveICEHasNoRelayByDefault(t *testing.T) {
+	for _, s := range newEnv(t).pageICE() {
+		if s.Username != "" || s.Credential != "" || strings.HasPrefix(s.URLs[0], "turn") {
+			t.Fatalf("unexpected relay entry %+v", s)
+		}
+	}
 }

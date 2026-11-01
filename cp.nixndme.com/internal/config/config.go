@@ -20,6 +20,8 @@ const (
 	minPasswordLength = 8
 	// A public STUN server only tells each browser its own address; file data never goes there.
 	defaultLiveSTUN = "stun:stun.cloudflare.com:3478"
+	// The relay secret signs every relay login; anything shorter is guessable offline.
+	minTURNSecretLength = 32
 )
 
 // Config is the immutable runtime configuration.
@@ -39,6 +41,13 @@ type Config struct {
 	// LiveSTUN lists the STUN servers Live Transfer browsers may use to find each other when
 	// local addresses alone do not work. Empty means local network candidates only.
 	LiveSTUN []string
+	// LiveTURN lists relay URLs (e.g. coturn on the Pi) used when two devices cannot connect
+	// directly, typically because a device firewall drops incoming traffic. The data stays
+	// end-to-end encrypted (DTLS) through the relay. Empty means no relay.
+	LiveTURN []string
+	// LiveTURNSecret is the static-auth-secret shared with the relay; cp derives short-lived
+	// relay logins from it, so the relay is never open to anyone without a cp session.
+	LiveTURNSecret string
 }
 
 // MinPasswordLength is the shortest password accepted for the login user.
@@ -61,6 +70,9 @@ func Load() (Config, error) {
 		StorageBytes:  envInt("CP_STORAGE_CAP_MB", defaultStorageMB) << 20,
 		MaxFiles:      int(envInt("CP_MAX_FILES_PER_SHARE", defaultMaxFiles)),
 		LiveSTUN:      envList("CP_LIVE_STUN", defaultLiveSTUN),
+		LiveTURN:      envList("CP_LIVE_TURN", ""),
+		// Not trimmed by env(): a secret is used exactly as written, like coturn reads it.
+		LiveTURNSecret: os.Getenv("CP_LIVE_TURN_SECRET"),
 	}
 	return cfg, cfg.Validate()
 }
@@ -95,7 +107,31 @@ func (c Config) Validate() error {
 			return fmt.Errorf("CP_LIVE_STUN entries must start with stun: or stuns: (got %q)", u)
 		}
 	}
+	return c.validateTURN()
+}
+
+func (c Config) validateTURN() error {
+	for _, u := range c.LiveTURN {
+		if !strings.HasPrefix(u, "turn:") && !strings.HasPrefix(u, "turns:") {
+			return fmt.Errorf("CP_LIVE_TURN entries must start with turn: or turns: (got %q)", u)
+		}
+	}
+	switch {
+	case len(c.LiveTURN) > 0 && len(c.LiveTURNSecret) < minTURNSecretLength:
+		return fmt.Errorf("CP_LIVE_TURN needs CP_LIVE_TURN_SECRET of at least %d characters (openssl rand -hex 32)",
+			minTURNSecretLength)
+	case len(c.LiveTURN) == 0 && c.LiveTURNSecret != "":
+		return fmt.Errorf("CP_LIVE_TURN_SECRET is set but CP_LIVE_TURN is empty")
+	case strings.IndexFunc(c.LiveTURNSecret, notAlnum) >= 0:
+		// The coturn image's entrypoint passes each argument through eval, so shell
+		// characters in the secret would silently change it on the relay side.
+		return fmt.Errorf("CP_LIVE_TURN_SECRET may only contain letters and digits (openssl rand -hex 32)")
+	}
 	return nil
+}
+
+func notAlnum(r rune) bool {
+	return !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9')
 }
 
 func env(key, def string) string {
