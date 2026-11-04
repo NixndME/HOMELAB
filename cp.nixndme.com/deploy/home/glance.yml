@@ -137,6 +137,17 @@ pages:
                 collapse-after: 8
           - type: group
             widgets:
+              # Your own Reddit front page (the subs you follow), from the private feed link at
+              # reddit.com/prefs/feeds, kept in .env. Unset: r/popular.
+              - type: rss
+                title: My Reddit
+                style: detailed-list
+                limit: 25
+                collapse-after: 8
+                cache: 30m
+                feeds:
+                  - url: ${CP_HOME_REDDIT_FEED}
+                    title: Reddit
               - type: reddit
                 title: LocalLLaMA
                 subreddit: LocalLLaMA

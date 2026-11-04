@@ -64,6 +64,8 @@ services:
       CP_HOME_WEATHER_LOCATION: ${CP_HOME_WEATHER_LOCATION:-London, United Kingdom}
       CP_HOME_WEATHER_2_NAME: ${CP_HOME_WEATHER_2_NAME:-Paris}
       CP_HOME_WEATHER_2_LOCATION: ${CP_HOME_WEATHER_2_LOCATION:-Paris, France}
+      # Private front-page feed link from reddit.com/prefs/feeds (a secret: .env only).
+      CP_HOME_REDDIT_FEED: ${CP_HOME_REDDIT_FEED:-https://www.reddit.com/r/popular/.rss}
     volumes:
       - ${CP_HOME_CONFIG_DIR:-./home}:/app/config:ro
     read_only: true
