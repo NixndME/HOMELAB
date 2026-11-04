@@ -76,7 +76,7 @@ func (s *Server) requirePage(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		o, ok := s.currentUser(r)
 		if !ok {
-			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			http.Redirect(w, r, s.entryPath(), http.StatusSeeOther)
 			return
 		}
 		s.touch(r, o)
@@ -89,6 +89,10 @@ func (s *Server) requireAPI(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		o, ok := s.currentUser(r)
 		if !ok {
+			if s.loginHidden() { // say nothing about an API to strangers
+				http.NotFound(w, r)
+				return
+			}
 			apiError(w, http.StatusUnauthorized, "login required")
 			return
 		}
@@ -106,6 +110,10 @@ func (s *Server) loginPage(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
+	if !s.loginAllowed(r) { // hidden behind the secret word: look like any unknown page
+		http.NotFound(w, r)
+		return
+	}
 	data := map[string]any{}
 	if r.URL.Query().Get("idle") != "" {
 		data["Notice"] = "You were logged out: no activity for a while, or this login was ended from another browser."
@@ -114,6 +122,10 @@ func (s *Server) loginPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) loginSubmit(w http.ResponseWriter, r *http.Request) {
+	if !s.loginAllowed(r) {
+		http.NotFound(w, r)
+		return
+	}
 	ip := s.clientIP(r)
 	fail := func(status int, msg string) {
 		s.render(w, status, "login", map[string]any{"Error": msg, "Username": r.PostFormValue("username")})
@@ -146,6 +158,7 @@ func (s *Server) loginSubmit(w http.ResponseWriter, r *http.Request) {
 		fail(http.StatusInternalServerError, "Could not log in, please retry.")
 		return
 	}
+	s.consumeTicket(w, r)
 	s.log.Info("login", "ip", ip)
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
@@ -183,5 +196,5 @@ func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	s.clearSessionCookie(w)
-	http.Redirect(w, r, "/login", http.StatusSeeOther)
+	http.Redirect(w, r, s.entryPath(), http.StatusSeeOther)
 }

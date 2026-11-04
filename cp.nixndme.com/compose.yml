@@ -47,6 +47,35 @@ services:
       driver: json-file
       options: { max-size: "10m", max-file: "3" }
 
+  # Start page (Glance) shown at / to everyone who is not logged in, once a secret word is set
+  # in cp's Settings. It has no port of its own: cp proxies it under /home (set
+  # CP_HOME_UPSTREAM=http://home:8080 for cp) and keeps cp's cookies away from it. If it is
+  # down, cp shows a plain search box instead. Enabled with the profile home in COMPOSE_PROFILES.
+  home:
+    # Pinned to the exact build that was tested (tag + digest); bump both together.
+    image: glanceapp/glance:v0.8.7@sha256:bc5a392672c1ec8823c50b61f3bd4b7e5acc34fcbb8477862577b3af1c633875
+    profiles: [home]
+    container_name: cp-home
+    restart: always
+    user: "65532:65532"
+    environment:
+      # Two weather tabs (name shown on the tab, location looked up by Open-Meteo).
+      CP_HOME_WEATHER_NAME: ${CP_HOME_WEATHER_NAME:-London}
+      CP_HOME_WEATHER_LOCATION: ${CP_HOME_WEATHER_LOCATION:-London, United Kingdom}
+      CP_HOME_WEATHER_2_NAME: ${CP_HOME_WEATHER_2_NAME:-Paris}
+      CP_HOME_WEATHER_2_LOCATION: ${CP_HOME_WEATHER_2_LOCATION:-Paris, France}
+    volumes:
+      - ${CP_HOME_CONFIG_DIR:-./home}:/app/config:ro
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 128m
+    cpus: 0.5
+    pids_limit: 64
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
   # Relay for Live transfer (coturn), used only when two devices cannot connect directly, e.g.
   # because a laptop firewall drops incoming traffic. Each browser then connects OUT to the relay,
   # which forwards the still end-to-end encrypted (DTLS) data; nothing is stored.

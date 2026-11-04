@@ -20,6 +20,8 @@ const (
 	minPasswordLength = 8
 	// A public STUN server only tells each browser its own address; file data never goes there.
 	defaultLiveSTUN = "stun:stun.cloudflare.com:3478"
+	// Start page searches that are not the secret word go here.
+	defaultSearchURL = "https://duckduckgo.com/?q={QUERY}"
 	// The relay secret signs every relay login; anything shorter is guessable offline.
 	minTURNSecretLength = 32
 )
@@ -48,6 +50,11 @@ type Config struct {
 	// LiveTURNSecret is the static-auth-secret shared with the relay; cp derives short-lived
 	// relay logins from it, so the relay is never open to anyone without a cp session.
 	LiveTURNSecret string
+	// HomeUpstream is the start page server (Glance) proxied under /home, e.g.
+	// http://home:8080. Empty means a built-in plain search page instead.
+	HomeUpstream string
+	// SearchURL is where start page searches go; {QUERY} is replaced by the search.
+	SearchURL string
 }
 
 // MinPasswordLength is the shortest password accepted for the login user.
@@ -73,6 +80,8 @@ func Load() (Config, error) {
 		LiveTURN:      envList("CP_LIVE_TURN", ""),
 		// Not trimmed by env(): a secret is used exactly as written, like coturn reads it.
 		LiveTURNSecret: os.Getenv("CP_LIVE_TURN_SECRET"),
+		HomeUpstream:   strings.TrimRight(os.Getenv("CP_HOME_UPSTREAM"), "/"),
+		SearchURL:      env("CP_SEARCH_URL", defaultSearchURL),
 	}
 	return cfg, cfg.Validate()
 }
@@ -101,6 +110,10 @@ func (c Config) Validate() error {
 		return fmt.Errorf("CP_CHUNK_MB must be at most 64 (Cloudflare caps request bodies at 100 MB)")
 	case !strings.HasPrefix(c.BaseURL, "http://") && !strings.HasPrefix(c.BaseURL, "https://"):
 		return fmt.Errorf("CP_BASE_URL must start with http:// or https://")
+	case c.HomeUpstream != "" && !strings.HasPrefix(c.HomeUpstream, "http://") && !strings.HasPrefix(c.HomeUpstream, "https://"):
+		return fmt.Errorf("CP_HOME_UPSTREAM must start with http:// or https://")
+	case !strings.HasPrefix(c.SearchURL, "https://") || !strings.Contains(c.SearchURL, "{QUERY}"):
+		return fmt.Errorf("CP_SEARCH_URL must be an https:// URL containing {QUERY}")
 	}
 	for _, u := range c.LiveSTUN {
 		if !strings.HasPrefix(u, "stun:") && !strings.HasPrefix(u, "stuns:") {

@@ -3,8 +3,10 @@ package server
 
 import (
 	"html/template"
+	"io"
 	"log/slog"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"strings"
 	"sync"
@@ -39,10 +41,16 @@ type Server struct {
 	unlock    *auth.Lockout     // per-IP lockout on share password guesses
 	tokenFail *auth.Lockout     // per-IP lockout on wrong API tokens
 	totp      *auth.TOTPVerifier
-	kick      chan struct{} // asks the cleanup loop to run now
-	uploadMu  sync.Map      // blob id -> *sync.Mutex, serialises chunks of one upload
-	live      *live.Hub     // Live Transfer meeting point (in memory)
-	origin    string
+	kick      chan struct{}          // asks the cleanup loop to run now
+	uploadMu  sync.Map               // blob id -> *sync.Mutex, serialises chunks of one upload
+	live      *live.Hub              // Live Transfer meeting point (in memory)
+	home      *httputil.ReverseProxy // start page under /home (nil: built-in search page)
+	tickets   *ticketStore           // login tickets handed out for the secret word
+	wordGuess *auth.RateLimiter      // per-IP limit on secret word checks
+	// wordGuessAll caps word checks site-wide (many IPs); wordMu runs them one at a time.
+	wordGuessAll *auth.RateLimiter
+	wordMu       sync.Mutex
+	origin       string
 }
 
 // New builds a server. kick may be nil.
@@ -55,16 +63,25 @@ func New(cfg config.Config, st *store.Store, v *vault.Vault, log *slog.Logger, k
 	if err != nil {
 		return nil, err
 	}
-	return &Server{
+	s := &Server{
 		cfg: cfg, st: st, vault: v, log: log, pages: pages, kick: kick,
-		lockout:   auth.NewLockout(5, 15*time.Minute, 15*time.Minute),
-		unlock:    auth.NewLockout(10, 15*time.Minute, 15*time.Minute),
-		tokenFail: auth.NewLockout(10, 15*time.Minute, 15*time.Minute),
-		public:    auth.NewRateLimiter(120, 60),
-		totp:      auth.NewTOTPVerifier(),
-		live:      newLiveHub(),
-		origin:    u.Scheme + "://" + u.Host,
-	}, nil
+		lockout:      auth.NewLockout(5, 15*time.Minute, 15*time.Minute),
+		unlock:       auth.NewLockout(10, 15*time.Minute, 15*time.Minute),
+		tokenFail:    auth.NewLockout(10, 15*time.Minute, 15*time.Minute),
+		public:       auth.NewRateLimiter(120, 60),
+		totp:         auth.NewTOTPVerifier(),
+		live:         newLiveHub(),
+		tickets:      newTicketStore(),
+		wordGuess:    auth.NewRateLimiter(10, 10),
+		wordGuessAll: auth.NewRateLimiter(60, 30),
+		origin:       u.Scheme + "://" + u.Host,
+	}
+	if cfg.HomeUpstream != "" {
+		if s.home, err = newHomeProxy(cfg.HomeUpstream, s); err != nil {
+			return nil, err
+		}
+	}
+	return s, nil
 }
 
 // Handler returns the full route table wrapped in the security middleware.
@@ -80,9 +97,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /login", s.loginPage)
 	mux.HandleFunc("POST /login", s.loginSubmit)
 	mux.HandleFunc("POST /logout", s.logout)
-	mux.HandleFunc("GET /{$}", s.requirePage(s.dashboardPage))
 	mux.HandleFunc("GET /settings", s.requirePage(s.settingsPage))
 
+	s.homeRoutes(mux) // "/", the start page and its search box
 	s.appRoutes(mux)
 	s.apiRoutes(mux)
 	s.liveRoutes(mux)
@@ -104,6 +121,8 @@ func (s *Server) apiRoutes(mux *http.ServeMux) {
 	api("DELETE /api/shares/{slug}", s.deleteShare)
 	api("POST /api/shares/{slug}/regenerate", s.regenerateShare)
 	api("GET /api/shares/{slug}/log", s.shareLog)
+	api("GET /api/account/login-word", s.getLoginWord)
+	api("PUT /api/account/login-word", s.putLoginWord)
 	api("GET /api/account/tokens", s.listTokens)
 	api("POST /api/account/tokens", s.createToken)
 	api("DELETE /api/account/tokens/{id}", s.deleteToken)
@@ -144,8 +163,20 @@ func (s *Server) secure(next http.Handler) http.Handler {
 		h.Set("Referrer-Policy", "same-origin") // share URLs are secrets: never send them to other sites
 		h.Set("X-Robots-Tag", "noindex, nofollow")
 		h.Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+		h.Set("Cross-Origin-Opener-Policy", "same-origin") // see homeProxy
 		if s.cfg.SecureCookies {
 			h.Set("Strict-Transport-Security", "max-age=31536000")
+		}
+		// Encoded slashes would let the mux redirect /home/..%2fsettings to /settings, sneaking
+		// past the start page's /home/-only fetch rule. Nothing in cp uses them.
+		if p := strings.ToLower(r.URL.EscapedPath()); strings.Contains(p, "%2f") || strings.Contains(p, "%5c") {
+			http.NotFound(w, r)
+			return
+		}
+		// A hidden login answers like a missing page, before any other check could tell.
+		if r.URL.Path == "/login" && !s.loginAllowed(r) {
+			http.NotFound(w, r)
+			return
 		}
 		// /share-target only redirects (the service worker handles real shares), so the share
 		// sheet's POST is never refused, whatever Sec-Fetch-Site the phone sends.
@@ -159,9 +190,47 @@ func (s *Server) secure(next http.Handler) http.Handler {
 				http.Error(w, "internal error", http.StatusInternalServerError)
 			}
 		}()
-		next.ServeHTTP(w, r)
+		next.ServeHTTP(&noMethodHints{ResponseWriter: w, r: r}, r)
 	})
 }
+
+// noMethodHints turns the mux's "405 Method Not Allowed" into the plain 404 of any unknown
+// address, so probing with other methods does not reveal which routes exist.
+type noMethodHints struct {
+	http.ResponseWriter
+	r      *http.Request
+	hidden bool
+}
+
+func (w *noMethodHints) WriteHeader(code int) {
+	if code == http.StatusMethodNotAllowed {
+		w.hidden = true
+		w.Header().Del("Allow")
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.ResponseWriter.WriteHeader(http.StatusNotFound)
+		io.WriteString(w.ResponseWriter, "404 page not found\n")
+		return
+	}
+	w.ResponseWriter.WriteHeader(code)
+}
+
+func (w *noMethodHints) Write(b []byte) (int, error) {
+	if w.hidden {
+		return len(b), nil // the mux's own 405 text
+	}
+	return w.ResponseWriter.Write(b)
+}
+
+// Flush keeps streaming responses (Live transfer events, large downloads) working.
+func (w *noMethodHints) Flush() {
+	if f, ok := w.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+// Unwrap lets http.ResponseController reach the real writer.
+func (w *noMethodHints) Unwrap() http.ResponseWriter { return w.ResponseWriter }
 
 // sameOrigin accepts a write only when it comes from this site. Modern browsers say so in
 // Sec-Fetch-Site; otherwise Origin (or Referer) must match. Cross-site CSRF is refused.

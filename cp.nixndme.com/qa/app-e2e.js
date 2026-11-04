@@ -20,6 +20,7 @@ if (!BASE || !USER || !PASS) {
 }
 const SHOTS = path.join(__dirname, 'shots');
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'cp-app-e2e-'));
+const TOKEN_NAME = 'e2e laptop ' + Date.now(); // unique, so leftovers from aborted runs never match
 
 let failed = 0;
 const check = (ok, what) => { console.log(`  ${ok ? 'OK  ' : 'FAIL'} ${what}`); if (!ok) failed++; };
@@ -226,7 +227,7 @@ async function main() {
 
     step('API token: create in Settings');
     await page.goto(BASE + '/settings');
-    await page.fill('#tok-name', 'e2e laptop');
+    await page.fill('#tok-name', TOKEN_NAME);
     await page.fill('#tok-password', PASS);
     await page.click('#token-form button[type=submit]');
     await page.waitForSelector('#tok-new:not([hidden])');
@@ -235,13 +236,16 @@ async function main() {
     const install = await page.textContent('#tok-install');
     check(install.includes(BASE + '/cpup') && install.includes('cpup --setup'), 'install command shown');
     const listed = await page.textContent('#token-list');
-    check(listed.includes('e2e laptop') && listed.includes('never used'), 'token listed, never used');
+    check(listed.includes(TOKEN_NAME) && listed.includes('never used'), 'token listed, never used');
     await page.screenshot({ path: path.join(SHOTS, 'app-02-token-created.png'), fullPage: true });
     await page.reload();
     check(!(await page.content()).includes(token), 'secret not shown again after reload');
 
     step('cpup: download and run it for real');
-    execFileSync('curl', ['-fsSL', BASE + '/cpup', '-o', path.join(TMP, 'cpup')]);
+    const anonDl = spawnSync('curl', ['-s', '-o', '/dev/null', '-w', '%{http_code}', BASE + '/cpup'], { encoding: 'utf8' });
+    check(anonDl.stdout === '404', `cpup is not handed to strangers (${anonDl.stdout})`);
+    check(install.includes(`Authorization: Bearer ${token}`), 'install command carries the token');
+    execFileSync('curl', ['-fsSL', '-H', `Authorization: Bearer ${token}`, BASE + '/cpup', '-o', path.join(TMP, 'cpup')]);
     const help = cpup(['--help'], { token });
     check(help.code === 0 && help.out.includes('Usage: cpup'), 'cpup --help');
 
@@ -302,10 +306,10 @@ async function main() {
     await page.goto(BASE + '/settings');
     await page.waitForSelector('#token-list li');
     check((await page.textContent('#token-list')).includes('last used'), 'last use shown');
-    const revoke = page.locator('#token-list li', { hasText: 'e2e laptop' }).locator('button');
+    const revoke = page.locator('#token-list li', { hasText: TOKEN_NAME }).locator('button');
     await revoke.click();
     await revoke.click();
-    await page.waitForFunction(() => !document.getElementById('token-list').textContent.includes('e2e laptop'));
+    await page.waitForFunction((n) => !document.getElementById('token-list').textContent.includes(n), TOKEN_NAME);
     const after = cpup([], { input: 'should fail', token });
     check(after.code !== 0 && after.err.includes('wrong or was revoked'), `revoked token refused (${after.err})`);
 

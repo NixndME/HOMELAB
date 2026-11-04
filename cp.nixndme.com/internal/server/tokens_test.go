@@ -281,9 +281,16 @@ func TestAppFilesAreServed(t *testing.T) {
 	if sw.header.Get("Content-Security-Policy") == "" {
 		t.Fatal("sw.js lost the CSP header")
 	}
-	up := e.get(anon, "/cpup")
-	if up.status != http.StatusOK || !strings.HasPrefix(up.body, "#!/usr/bin/env bash") {
-		t.Fatalf("cpup: %d %.40q", up.status, up.body)
+	if up := e.get(anon, "/cpup"); up.status != http.StatusNotFound {
+		t.Fatalf("cpup for a stranger: %d, want 404", up.status)
+	}
+	for name, r := range map[string]result{
+		"token": e.bearer(e.newToken("dl"), "GET", "/cpup", nil, ""),
+		"owner": e.get(e.owner, "/cpup"),
+	} {
+		if r.status != http.StatusOK || !strings.HasPrefix(r.body, "#!/usr/bin/env bash") {
+			t.Fatalf("cpup for %s: %d %.40q", name, r.status, r.body)
+		}
 	}
 	// Without the service worker, a share-sheet POST just lands on the dashboard.
 	fb := e.do(anon, "POST", "/share-target", strings.NewReader(""), map[string]string{"Sec-Fetch-Site": "none"})

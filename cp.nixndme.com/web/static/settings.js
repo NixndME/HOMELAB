@@ -76,7 +76,7 @@ async function endSession(sess, btn) {
   if (sess.current && !CP.armed(btn, 'Click again: log out here')) return;
   try {
     await CP.api('DELETE', `/api/account/sessions/${sess.id}`);
-    if (sess.current) { location.href = '/login'; return; }
+    if (sess.current) { location.href = '/'; return; }
     flash('sess-msg', 'Logged out that browser', true);
     await loadSessions();
   } catch (e) {
@@ -243,7 +243,7 @@ $('token-form').addEventListener('submit', async (ev) => {
     ev.target.reset();
     $('tok-secret').textContent = r.token;
     $('tok-install').textContent =
-      `mkdir -p ~/.local/bin && curl -fsSL ${baseURL}/cpup -o ~/.local/bin/cpup && chmod +x ~/.local/bin/cpup\n` +
+      `mkdir -p ~/.local/bin && curl -fsSL -H "Authorization: Bearer ${r.token}" ${baseURL}/cpup -o ~/.local/bin/cpup && chmod +x ~/.local/bin/cpup\n` +
       `cpup --setup    # address: ${baseURL}, token: the one above`;
     $('tok-new').hidden = false;
     flash('tok-msg', `Token “${r.name}” created`, true);
@@ -274,5 +274,37 @@ $('install-app').addEventListener('click', async () => {
   $('install-row').hidden = true;
 });
 
+// ---------- hidden sign-in: the secret word typed into the start page's search box ----------
+
+async function loadWord() {
+  const r = await CP.api('GET', '/api/account/login-word');
+  $('word-status').textContent = r.set
+    ? 'On: the sign-in page is hidden. Visitors see the start page; type your secret word in its search box to sign in.'
+    : 'Off: the sign-in page is at /login for anyone who opens it.';
+  $('word-clear').hidden = !r.set;
+}
+
+async function saveWord(word, btn) {
+  try {
+    const r = await CP.api('PUT', '/api/account/login-word', { word, password: $('word-password').value });
+    $('word-form').reset();
+    flash('word-msg', r.set ? 'Saved. Remember the word: it is the only way to the sign-in page.' : 'Turned off: /login works again.', true);
+    await loadWord();
+  } catch (e) {
+    flash('word-msg', e.message, false);
+  }
+}
+
+$('word-form').addEventListener('submit', (ev) => {
+  ev.preventDefault();
+  if ($('word-new').value !== $('word-repeat').value) { flash('word-msg', 'The two words do not match', false); return; }
+  saveWord($('word-new').value);
+});
+$('word-clear').addEventListener('click', (ev) => {
+  if (!CP.armed(ev.currentTarget, 'Click again to turn off')) return;
+  saveWord('');
+});
+
 load().catch((e) => CP.toast(e.message, 'err'));
 loadTokens().catch((e) => CP.toast(e.message, 'err'));
+loadWord().catch((e) => CP.toast(e.message, 'err'));

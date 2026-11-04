@@ -230,5 +230,9 @@ func (s *Store) ResetCredentials(passHash string) error {
 	if _, err := tx.Exec(`DELETE FROM api_tokens`); err != nil {
 		return err
 	}
+	// Recovery must also work for an owner who forgot the hidden sign-in's secret word.
+	if _, err := tx.Exec(`DELETE FROM settings WHERE key = 'login_word'`); err != nil {
+		return err
+	}
 	return tx.Commit()
 }

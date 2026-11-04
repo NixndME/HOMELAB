@@ -1,0 +1,362 @@
+# Start page shown at / to anyone not logged in (Glance, https://github.com/glanceapp/glance).
+# cp proxies it under /home; the search box goes to cp's /q, which opens the login only for
+# the secret word set in cp's Settings and sends everything else to a normal web search.
+# Site values come from the environment (.env, see .env.example): the two weather places.
+server:
+  host: 0.0.0.0
+  port: 8080
+  base-url: /home
+  proxied: true
+
+document:
+  head: <meta name="robots" content="noindex, nofollow">
+
+branding:
+  hide-footer: true
+  app-name: Start
+  app-background-color: "#1e1e2e"
+
+theme:
+  # Catppuccin Mocha by default; the palette button (top right) switches presets per browser.
+  background-color: 240 21 15
+  contrast-multiplier: 1.2
+  primary-color: 217 92 83
+  positive-color: 115 54 76
+  negative-color: 347 70 65
+  presets:
+    catppuccin-latte:
+      light: true
+      background-color: 220 23 95
+      contrast-multiplier: 1.0
+      primary-color: 220 91 54
+      positive-color: 109 58 40
+      negative-color: 347 87 44
+    dracula:
+      background-color: 231 15 21
+      primary-color: 265 89 79
+      contrast-multiplier: 1.2
+      positive-color: 135 94 66
+      negative-color: 0 100 67
+    gruvbox-dark:
+      background-color: 0 0 16
+      primary-color: 43 59 81
+      positive-color: 61 66 44
+      negative-color: 6 96 59
+    neon-pink:
+      background-color: 240 27 11
+      primary-color: 321 100 71
+      contrast-multiplier: 1.3
+      positive-color: 158 100 59
+      negative-color: 0 100 66
+    teal-city:
+      background-color: 225 14 15
+      primary-color: 157 47 65
+      contrast-multiplier: 1.1
+
+pages:
+  # ---------- Home: the daily glance ----------
+  - name: Home
+    width: wide
+    head-widgets:
+      - type: search
+        search-engine: /q?q={QUERY}
+        placeholder: Search the web…
+        autofocus: true
+    columns:
+      - size: small
+        widgets:
+          - type: clock
+            hour-format: 24h
+          - type: group
+            widgets:
+              - type: weather
+                title: ${CP_HOME_WEATHER_NAME}
+                location: ${CP_HOME_WEATHER_LOCATION}
+                hide-location: true
+                units: metric
+                hour-format: 12h
+              - type: weather
+                title: ${CP_HOME_WEATHER_2_NAME}
+                location: ${CP_HOME_WEATHER_2_LOCATION}
+                hide-location: true
+                units: metric
+                hour-format: 12h
+          - type: calendar
+            first-day-of-week: monday
+          - type: markets
+            markets:
+              - symbol: ^NSEI
+                name: Nifty 50
+              - symbol: ^BSESN
+                name: Sensex
+              - symbol: INR=X
+                name: USD / INR
+              - symbol: GC=F
+                name: Gold
+              - symbol: NVDA
+                name: NVIDIA
+              - symbol: MSFT
+                name: Microsoft
+              - symbol: BTC-USD
+                name: Bitcoin
+          - type: to-do
+            title: To-do (this browser)
+          - type: bookmarks
+            groups:
+              - title: Daily
+                links:
+                  - title: Gmail
+                    url: https://mail.google.com/
+                  - title: Calendar
+                    url: https://calendar.google.com/
+                  - title: GitHub
+                    url: https://github.com/
+                  - title: Claude
+                    url: https://claude.ai/
+                  - title: YouTube
+                    url: https://www.youtube.com/
+              - title: Learn
+                links:
+                  - title: Kubernetes docs
+                    url: https://kubernetes.io/docs/home/
+                  - title: Hugging Face
+                    url: https://huggingface.co/
+                  - title: AI papers
+                    url: https://huggingface.co/papers
+
+      - size: full
+        widgets:
+          - type: group
+            widgets:
+              - type: hacker-news
+                title: Hacker News
+                limit: 20
+                collapse-after: 8
+              - type: lobsters
+                title: Lobsters
+                collapse-after: 8
+          - type: group
+            widgets:
+              - type: reddit
+                title: LocalLLaMA
+                subreddit: LocalLLaMA
+                show-thumbnails: true
+                collapse-after: 6
+              - type: reddit
+                title: selfhosted
+                subreddit: selfhosted
+                collapse-after: 6
+              - type: reddit
+                title: kubernetes
+                subreddit: kubernetes
+                collapse-after: 6
+              - type: reddit
+                title: opensource
+                subreddit: opensource
+                collapse-after: 6
+              - type: reddit
+                title: MachineLearning
+                subreddit: MachineLearning
+                collapse-after: 6
+          - type: rss
+            title: AI & personal AI
+            style: detailed-list
+            limit: 20
+            collapse-after: 6
+            cache: 30m
+            feeds:
+              - url: https://simonwillison.net/atom/everything/
+                title: Simon Willison
+              - url: https://huggingface.co/blog/feed.xml
+                title: Hugging Face
+              - url: https://www.latent.space/feed
+                title: Latent Space
+              - url: https://openai.com/news/rss.xml
+                title: OpenAI
+                limit: 5
+              - url: https://blog.google/technology/ai/rss/
+                title: Google AI
+              - url: https://ollama.com/blog/rss.xml
+                title: Ollama
+                limit: 5
+              - url: https://www.marktechpost.com/feed/
+                title: MarkTechPost
+          - type: rss
+            title: Tech
+            limit: 20
+            collapse-after: 8
+            cache: 30m
+            feeds:
+              - url: https://www.theverge.com/rss/index.xml
+                title: The Verge
+              - url: https://feeds.arstechnica.com/arstechnica/index
+                title: Ars Technica
+              - url: https://techcrunch.com/feed/
+                title: TechCrunch
+              - url: https://www.thehindu.com/sci-tech/technology/feeder/default.rss
+                title: The Hindu Tech
+              - url: https://economictimes.indiatimes.com/tech/rssfeeds/13357270.cms
+                title: ET Tech
+              - url: https://inc42.com/feed/
+                title: Inc42
+
+      - size: small
+        widgets:
+          - type: rss
+            title: India
+            limit: 12
+            collapse-after: 6
+            cache: 30m
+            feeds:
+              - url: https://www.thehindu.com/news/national/feeder/default.rss
+                title: The Hindu
+              - url: https://indianexpress.com/section/india/feed/
+                title: Indian Express
+          - type: rss
+            title: Kubernetes & cloud native
+            limit: 10
+            collapse-after: 5
+            cache: 1h
+            feeds:
+              - url: https://kubernetes.io/feed.xml
+                title: Kubernetes
+              - url: https://www.cncf.io/feed/
+                title: CNCF
+              - url: https://www.docker.com/blog/feed/
+                title: Docker
+          - type: releases
+            title: Releases
+            cache: 3h
+            show-source-icon: true
+            repositories:
+              - kubernetes/kubernetes
+              - k3s-io/k3s
+              - ollama/ollama
+              - ggml-org/llama.cpp
+              - open-webui/open-webui
+              - vllm-project/vllm
+              - anthropics/claude-code
+              - glanceapp/glance
+
+  # ---------- Discover: new and interesting tech ----------
+  - name: Discover
+    width: wide
+    head-widgets:
+      - type: videos
+        title: New videos
+        style: horizontal-cards
+        cache: 3h
+        limit: 20
+        channels:
+          - UCsBjURrPoezykLs9EqgamOA # Fireship
+          - UCbfYPyITQ-7l4upoX8nvctg # Two Minute Papers
+          - UCXUPKJO5MZQN11PqgIvyuvQ # Andrej Karpathy
+          - UCdngmbVKX1Tgre699-XLlUA # TechWorld with Nana
+          - UCR-DXc1voovS8nhAvccRZhg # Jeff Geerling
+          - UC9x0AN7BWHpCDHSm9NiJFJQ # NetworkChuck
+          - UC8ENHE5xdFSwx71u3fDH5Xw # ThePrimeagen
+    columns:
+      - size: full
+        widgets:
+          - type: custom-api
+            title: Trending models on Hugging Face
+            cache: 3h
+            url: https://huggingface.co/api/models?sort=trendingScore&limit=15
+            template: |
+              <ul class="list list-gap-10 collapsible-container" data-collapse-after="7">
+              {{ range .JSON.Array "" }}
+                <li>
+                  <a class="size-h4 color-primary-if-not-visited block text-truncate" href="https://huggingface.co/{{ .String "id" }}" target="_blank" rel="noreferrer">{{ .String "id" }}</a>
+                  <ul class="list-horizontal-text">
+                    {{ with .String "pipeline_tag" }}<li>{{ . }}</li>{{ end }}
+                    <li>{{ .Int "likes" | formatNumber }} likes</li>
+                    <li>{{ .Int "downloads" | formatNumber }} downloads</li>
+                  </ul>
+                </li>
+              {{ end }}
+              </ul>
+          - type: custom-api
+            title: Today's AI papers (Hugging Face)
+            cache: 3h
+            url: https://huggingface.co/api/daily_papers?limit=15
+            template: |
+              <ul class="list list-gap-10 collapsible-container" data-collapse-after="7">
+              {{ range .JSON.Array "" }}
+                <li>
+                  <a class="size-h4 color-primary-if-not-visited block" href="https://huggingface.co/papers/{{ .String "paper.id" }}" target="_blank" rel="noreferrer">{{ .String "title" }}</a>
+                  <ul class="list-horizontal-text">
+                    <li>{{ .Int "paper.upvotes" | formatNumber }} upvotes</li>
+                    <li>arXiv {{ .String "paper.id" }}</li>
+                  </ul>
+                </li>
+              {{ end }}
+              </ul>
+          - type: group
+            widgets:
+              - type: rss
+                title: Trending on GitHub
+                limit: 15
+                collapse-after: 7
+                cache: 3h
+                feeds:
+                  - url: https://mshibanami.github.io/GitHubTrendingRSS/daily/all.xml
+              - type: rss
+                title: Go
+                limit: 15
+                collapse-after: 7
+                cache: 3h
+                feeds:
+                  - url: https://mshibanami.github.io/GitHubTrendingRSS/daily/go.xml
+              - type: rss
+                title: Python
+                limit: 15
+                collapse-after: 7
+                cache: 3h
+                feeds:
+                  - url: https://mshibanami.github.io/GitHubTrendingRSS/daily/python.xml
+              - type: rss
+                title: Rust
+                limit: 15
+                collapse-after: 7
+                cache: 3h
+                feeds:
+                  - url: https://mshibanami.github.io/GitHubTrendingRSS/daily/rust.xml
+              - type: rss
+                title: TypeScript
+                limit: 15
+                collapse-after: 7
+                cache: 3h
+                feeds:
+                  - url: https://mshibanami.github.io/GitHubTrendingRSS/daily/typescript.xml
+
+      - size: small
+        widgets:
+          - type: rss
+            title: New on Product Hunt
+            limit: 12
+            collapse-after: 6
+            cache: 3h
+            feeds:
+              - url: https://www.producthunt.com/feed
+          - type: rss
+            title: What's new (changelogs)
+            limit: 15
+            collapse-after: 6
+            cache: 3h
+            feeds:
+              - url: https://github.blog/changelog/feed/
+                title: GitHub
+              - url: https://blog.cloudflare.com/rss/
+                title: Cloudflare
+              - url: https://www.docker.com/blog/feed/
+                title: Docker
+          - type: rss
+            title: Self-hosted & Linux
+            limit: 12
+            collapse-after: 6
+            cache: 3h
+            feeds:
+              - url: https://selfh.st/rss/
+                title: selfh.st
+              - url: https://lwn.net/headlines/newrss
+                title: LWN

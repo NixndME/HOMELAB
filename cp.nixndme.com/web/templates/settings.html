@@ -86,6 +86,26 @@
 </section>
 
 <section class="card">
+  <h2>Hidden sign-in</h2>
+  <p class="muted" id="word-status">…</p>
+  <p class="muted">With a secret word set, visitors only ever see a start page and <code>/login</code> looks like any
+    missing page. To sign in, type the word into the start page's search box (any capitals). Other searches go
+    to the web as usual. Your password and 2FA are still needed after the word. Two or three unrelated words are best.</p>
+  <form id="word-form" class="stack">
+    <div class="grid">
+      <label>Secret word <input type="password" id="word-new" autocomplete="off" minlength="8" maxlength="200" required></label>
+      <label>Repeat it <input type="password" id="word-repeat" autocomplete="off" minlength="8" maxlength="200" required></label>
+    </div>
+    <label>Current password <input type="password" id="word-password" autocomplete="current-password" required></label>
+    <div class="row">
+      <button type="submit" class="primary">Save secret word</button>
+      <button type="button" class="btn danger-outline" id="word-clear" hidden>Turn off</button>
+      <span class="muted" id="word-msg"></span>
+    </div>
+  </form>
+</section>
+
+<section class="card">
   <h2>Phone app</h2>
   <p class="muted">Install cp as an app to share straight from other apps: pick <b>Share → cp</b> on a photo, file,
     link or text and the New share dialog opens with it. On Android open your browser menu and choose

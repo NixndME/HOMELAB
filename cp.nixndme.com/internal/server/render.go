@@ -35,7 +35,7 @@ const (
 	highlightBytes = 256 << 10
 )
 
-var pageNames = []string{"login", "dashboard", "settings", "share", "gone", "live"}
+var pageNames = []string{"login", "dashboard", "settings", "share", "gone", "live", "start"}
 
 // assetVersion is a hash of every embedded static file. Asset URLs carry it (?v=…), so a new
 // build always gets fresh URLs and neither Cloudflare's edge nor the browser serves stale JS/CSS.

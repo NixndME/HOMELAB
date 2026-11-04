@@ -17,7 +17,9 @@ const CP = (() => {
       opts.body = JSON.stringify(body);
     }
     const res = await fetch(path, opts);
-    if (res.status === 401) { location.href = '/login?idle=1'; throw new Error('Logged out'); }
+    // Logged out: 401, or (with the hidden sign-in) the plain-text 404 strangers get.
+    const plain404 = res.status === 404 && !(res.headers.get('Content-Type') || '').includes('json');
+    if (res.status === 401 || plain404) { location.href = '/?idle=1'; throw new Error('Logged out'); }
     if (res.status === 204) return null;
     let data = null;
     try { data = await res.json(); } catch (e) { data = null; }

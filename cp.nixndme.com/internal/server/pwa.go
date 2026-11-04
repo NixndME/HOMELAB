@@ -14,7 +14,18 @@ func (s *Server) appRoutes(mux *http.ServeMux) {
 	// The worker must live at the root to control the whole site. no-cache: browsers then
 	// check for a new version on every visit, so a release reaches installed apps quickly.
 	mux.HandleFunc("GET /sw.js", embedded("static/sw.js", "text/javascript; charset=utf-8", "no-cache"))
-	mux.HandleFunc("GET /cpup", embedded("static/cpup.sh", "text/plain; charset=utf-8", "no-cache"))
+	// The upload script only for the owner (logged in) or a token holder; others get the
+	// same 404 as any unknown address, so it says nothing about what runs here.
+	cpup := embedded("static/cpup.sh", "text/plain; charset=utf-8", "no-store")
+	mux.HandleFunc("GET /cpup", func(w http.ResponseWriter, r *http.Request) {
+		if _, ok := s.currentUser(r); !ok {
+			if _, ok := s.lookupToken(r); !ok {
+				http.NotFound(w, r)
+				return
+			}
+		}
+		cpup(w, r)
+	})
 	// The service worker answers shares from the share sheet itself and keeps their files in
 	// the browser. This only runs when it is missing (first launch before it installed):
 	// nothing is stored, the owner just lands on the dashboard.

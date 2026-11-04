@@ -20,6 +20,9 @@ save a link from any browser; pick it up later from another machine. Everything 
 - **Live transfer** (`/live`): send big files or whole folders (5, 10 GB, more) from one device straight
   to another on the home network. Open Live on both devices, pick files on one, tap Receive on the other.
   See [Live transfer](#live-transfer).
+- **Hidden sign-in** (optional): strangers see an ordinary start page (news, Reddit, weather,
+  releases…) and `/login` answers like a missing page; you type a secret word into its search box
+  to sign in. See [Hidden sign-in](#hidden-sign-in).
 - **Phone app**: install cp from the browser (Android: menu → Install app) and it shows up in the
   share sheet: **Share → cp** on a photo, file, link or text opens New share with it filled in.
   See [Phone app](#phone-app).
@@ -39,6 +42,45 @@ save a link from any browser; pick it up later from another machine. Everything 
 | Disk safety | `CP_STORAGE_CAP_MB` hard cap; uploads are refused when it would be exceeded |
 | Web security | Strict CSP (no inline script), CSRF token plus same-origin check, `Referrer-Policy: same-origin`, `noindex`, user files never rendered as HTML |
 | Container | distroless, non-root, read-only root fs, all capabilities dropped, 256 MB / 1 CPU limits, loopback-only port |
+
+## Hidden sign-in
+
+Without it, anyone opening the site sees a sign-in form, which tells them something private is
+there. With a **secret word** set (Settings → Hidden sign-in, password required):
+
+- `/` shows a start page to everyone who is not signed in: [Glance](https://github.com/glanceapp/glance)
+  with Hacker News, Reddit, tech/AI/Kubernetes/India feeds, GitHub releases, weather, markets, clock,
+  and a theme picker. Config: [deploy/home/glance.yml](deploy/home/glance.yml).
+- `/login`, `/cpup` and unknown addresses all answer the same plain `404 page not found`.
+- Type the word into the start page's search box (case and extra spaces do not matter): this
+  browser gets a 10-minute, single-use ticket and the sign-in page opens. Every other search goes
+  to `CP_SEARCH_URL` (DuckDuckGo by default). Word checks are limited to 10 a minute per IP; beyond
+  that a search is just a search, so guessing teaches nothing. Password and 2FA are still required.
+- Logging out or idling out lands on the start page. Signed in, `/` is the dashboard and the start
+  page stays at `/home/`.
+- Turn it off in Settings to get `/login` back. Forgot the word? `cp reset-password` (the usual
+  recovery, run on the host) also turns the hidden sign-in off.
+
+How the start page is kept apart from cp, although it shares cp's address:
+
+- cp proxies it from the `home` container (no port of its own) under `/home`. Only GET passes; cp's
+  session cookie, tokens and tickets are never forwarded, and of its cookies only the theme choice
+  comes back (scoped to `/home/`).
+- The page gets its own CSP: scripts only from the page itself plus the exact hash of its one inline
+  `<head>` script, so text from a feed can never run as script. Images may come from the feeds' sites.
+- If it is down (e.g. still starting after a power cut), cp shows a plain search box that works the
+  same way. The weather location (`CP_HOME_WEATHER_LOCATION`) is never printed on the page.
+
+Turn it on (on the Pi):
+
+```sh
+mkdir -p ~/cp/home && cp deploy/home/glance.yml ~/cp/home/   # copy from this repo
+# in ~/cp/.env: COMPOSE_PROFILES=tunnel,turn,home   CP_HOME_UPSTREAM=http://home:8080
+#               CP_HOME_WEATHER_LOCATION=<nearby city, country>
+docker compose up -d home cp
+```
+
+then set the secret word in Settings.
 
 ## Phone app
 
@@ -203,6 +245,9 @@ CP_URL=http://localhost:18091 SESS_USER=tester SESS_PASS=<pick-one> node qa/sess
 # phone app (installable, share sheet incl. files and the logged-out case) + API tokens + the real
 # cpup script (20 MB multi-chunk file checked by sha256); creates/revokes tokens, so throwaway only
 CP_URL=http://localhost:18092 APP_USER=tester APP_PASS=<pick-one> node qa/app-e2e.js
+# hidden sign-in: start page, secret word, /login as a missing page, phone layout, no CSP errors;
+# needs CP_HOME_UPSTREAM pointing at a running Glance; sets/clears the word, so throwaway only
+CP_URL=http://localhost:18092 APP_USER=tester APP_PASS=<pick-one> node qa/home-e2e.js
 # streaming ZIP writer used by Live transfer (needs python3 and unzip)
 node --test qa/
 # Live transfer between real engines (Firefox ≈ Zen, WebKit ≈ Safari, Chromium ≈ Opera), against a

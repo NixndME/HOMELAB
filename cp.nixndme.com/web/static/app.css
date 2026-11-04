@@ -256,3 +256,7 @@ textarea.links { min-height: 160px; white-space: pre; }
 pre.cmd { font-family: var(--mono); font-size: .85em; background: var(--surface); border: 1px solid var(--border);
   border-radius: 8px; padding: .6rem .75rem; white-space: pre-wrap; word-break: break-all; margin: 0; }
 .notice { background: var(--accent-soft); padding: .55rem .8rem; border-radius: 8px; font-size: .9rem; margin: 0 0 .75rem; }
+
+/* Built-in start page (when the full start page is not running) */
+.start { margin-top: 22vh; }
+.start input[type=search] { font-size: 1.15rem; padding: .85rem 1.1rem; border-radius: 999px; }

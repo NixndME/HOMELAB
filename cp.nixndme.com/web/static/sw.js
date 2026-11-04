@@ -1,7 +1,6 @@
-// Service worker: receives shares from the phone's share sheet (Web Share Target).
-// It keeps what was shared in this browser (IndexedDB) and opens the dashboard, which
-// pre-fills the New share dialog and uploads it the normal, chunked way. Nothing else is
-// intercepted or cached: every other request goes straight to the server.
+// Service worker for the installed app: receives items from the system share sheet,
+// keeps them in this browser (IndexedDB) and opens the app, which picks them up.
+// Nothing else is intercepted or cached.
 'use strict';
 
 const DB = 'cp-share-target';
