@@ -162,6 +162,16 @@ const CP = (() => {
       document.addEventListener(t, onActivity, { passive: true, capture: true }));
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkIdle(); });
     checkIdle();
+    // Installs cp as an app target for the phone's share sheet (see sw.js). Owner pages
+    // only: people opening a public share link never get a service worker.
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => { /* share sheet just unavailable */ });
+    }
+    // Logging out also drops anything shared to cp that was not picked up yet.
+    const logoutForm = document.querySelector('form[action="/logout"]');
+    if (logoutForm && 'indexedDB' in window) {
+      logoutForm.addEventListener('submit', () => { try { indexedDB.deleteDatabase('cp-share-target'); } catch (e) { /* nothing stored */ } });
+    }
   }
 
   return { api, toast, copyText, bytes, duration, left, ago, date, openQR, armed, refreshTimes, csrf, keepAliveWhile };

@@ -227,5 +227,8 @@ func (s *Store) ResetCredentials(passHash string) error {
 	if _, err := tx.Exec(`DELETE FROM sessions`); err != nil {
 		return err
 	}
+	if _, err := tx.Exec(`DELETE FROM api_tokens`); err != nil {
+		return err
+	}
 	return tx.Commit()
 }

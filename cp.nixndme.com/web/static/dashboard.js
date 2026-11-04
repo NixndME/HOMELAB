@@ -369,6 +369,8 @@ function openNew(opts) {
   $('new-form').reset();
   $('text-input').value = opts.text || '';
   $('link-input').value = opts.link || '';
+  $('title').value = opts.title || '';
+  $('shared-note').hidden = true;
   renderPicked();
   updateTextStats();
   updateLinkStats();
@@ -570,6 +572,64 @@ document.addEventListener('paste', (e) => {
   else openNew({ text, part: 'text' });
 });
 
+// ---------- share sheet (installed app): sw.js keeps what was shared in IndexedDB ----------
+
+const SHARED_DB = 'cp-share-target';
+const SHARED_MAX_AGE_MS = 60 * 60 * 1000; // older leftovers (e.g. never logged in) are dropped
+
+// Takes the pending item out of IndexedDB (read and delete in one go), or null.
+function takeShared() {
+  return new Promise((resolve) => {
+    if (!('indexedDB' in window)) return resolve(null);
+    const req = indexedDB.open(SHARED_DB, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore('pending');
+    req.onerror = () => resolve(null);
+    req.onsuccess = () => {
+      const db = req.result;
+      let item = null;
+      try {
+        const tx = db.transaction('pending', 'readwrite');
+        const st = tx.objectStore('pending');
+        st.get('latest').onsuccess = (e) => { item = e.target.result || null; st.delete('latest'); };
+        tx.oncomplete = () => { db.close(); resolve(item); };
+        tx.onerror = () => { db.close(); resolve(null); };
+      } catch (e) {
+        db.close();
+        resolve(null);
+      }
+    };
+  });
+}
+
+// Maps a share-sheet item onto the New share dialog. Apps put a page's address in url or in
+// text (or both); a text that is only links becomes links, anything else stays text.
+function sharedToDialog(item) {
+  const url = item.url.trim();
+  let text = item.text.trim();
+  if (url && text.endsWith(url)) text = text.slice(0, -url.length).trim(); // "Title https://…" duplicates
+  const links = url ? [url] : [];
+  if (text && allLinks(text)) { links.push(...text.split('\n').map((l) => l.trim()).filter(Boolean)); text = ''; }
+  const files = item.files || [];
+  const part = files.length ? 'files' : (text ? 'text' : 'links');
+  return { title: item.title.trim(), text, link: links.join('\n'), files, part };
+}
+
+async function pickUpShared() {
+  const flag = new URLSearchParams(location.search).get('shared');
+  if (flag) history.replaceState(null, '', '/');
+  if (flag === 'failed') CP.toast('Could not read what was shared, please try again', 'err');
+  if (flag === 'lost') CP.toast('The app was still installing, please share again', 'err');
+  if (flag === 'toobig') CP.toast('That is more than 1 GB: use Live transfer for big files', 'err');
+  const item = await takeShared();
+  if (!item || Date.now() - item.at > SHARED_MAX_AGE_MS) return;
+  const opts = sharedToDialog(item);
+  if (!opts.text && !opts.link && !opts.files.length) return;
+  openNew(opts);
+  // It came from outside the page: start private and say so, whatever the default is.
+  $('public').checked = false;
+  $('shared-note').hidden = false;
+}
+
 const REFRESH_MS = 30000;
 
 async function init() {
@@ -581,6 +641,7 @@ async function init() {
   } catch (e) {
     CP.toast(e.message, 'err');
   }
+  pickUpShared(); // after settings, so the dialog gets the default expiry and public switch
   await Promise.all([loadShares(), loadUsage()]);
   setInterval(() => {
     if (!document.querySelector('dialog[open]') && !document.querySelector('details.more[open]')) loadShares(true);

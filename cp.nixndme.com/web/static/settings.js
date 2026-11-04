@@ -195,4 +195,84 @@ $('logout-others').addEventListener('click', async () => {
   }
 });
 
+// ---------- API tokens ----------
+
+function tokenItem(t) {
+  const li = document.createElement('li');
+  const info = document.createElement('div');
+  const name = document.createElement('strong');
+  name.textContent = t.name;
+  const meta = document.createElement('div');
+  meta.className = 'muted';
+  meta.textContent = `created ${CP.ago(t.created_at)} · ` +
+    (t.last_used ? `last used ${CP.ago(t.last_used)} from ${t.last_ip || 'unknown IP'}` : 'never used');
+  info.append(name, meta);
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'btn small danger-outline';
+  btn.textContent = 'Revoke';
+  btn.addEventListener('click', () => revokeToken(t, btn));
+  li.append(info, btn);
+  return li;
+}
+
+let baseURL = location.origin;
+
+async function loadTokens() {
+  const r = await CP.api('GET', '/api/account/tokens');
+  baseURL = r.base_url || location.origin;
+  $('token-list').replaceChildren(...r.tokens.map(tokenItem));
+}
+
+async function revokeToken(t, btn) {
+  if (!CP.armed(btn, 'Click again to revoke')) return;
+  try {
+    await CP.api('DELETE', `/api/account/tokens/${t.id}`);
+    flash('tok-msg', `Revoked “${t.name}”`, true);
+    $('tok-new').hidden = true;
+    await loadTokens();
+  } catch (e) {
+    flash('tok-msg', e.message, false);
+  }
+}
+
+$('token-form').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  try {
+    const r = await CP.api('POST', '/api/account/tokens', { name: $('tok-name').value, password: $('tok-password').value });
+    ev.target.reset();
+    $('tok-secret').textContent = r.token;
+    $('tok-install').textContent =
+      `mkdir -p ~/.local/bin && curl -fsSL ${baseURL}/cpup -o ~/.local/bin/cpup && chmod +x ~/.local/bin/cpup\n` +
+      `cpup --setup    # address: ${baseURL}, token: the one above`;
+    $('tok-new').hidden = false;
+    flash('tok-msg', `Token “${r.name}” created`, true);
+    await loadTokens();
+  } catch (e) {
+    flash('tok-msg', e.message, false);
+  }
+});
+
+$('tok-copy').addEventListener('click', async () => {
+  CP.toast((await CP.copyText($('tok-secret').textContent)) ? 'Token copied' : 'Copy failed', 'ok');
+});
+
+// ---------- install as an app (Chrome/Edge offer this; Safari and Firefox do not) ----------
+
+let installPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  installPrompt = e;
+  $('install-row').hidden = false;
+});
+window.addEventListener('appinstalled', () => { $('install-row').hidden = true; CP.toast('cp installed', 'ok'); });
+$('install-app').addEventListener('click', async () => {
+  if (!installPrompt) return;
+  installPrompt.prompt();
+  await installPrompt.userChoice;
+  installPrompt = null;
+  $('install-row').hidden = true;
+});
+
 load().catch((e) => CP.toast(e.message, 'err'));
+loadTokens().catch((e) => CP.toast(e.message, 'err'));

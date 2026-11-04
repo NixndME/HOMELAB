@@ -29,19 +29,20 @@ const (
 
 // Server holds every dependency of the HTTP handlers.
 type Server struct {
-	cfg      config.Config
-	st       *store.Store
-	vault    *vault.Vault
-	log      *slog.Logger
-	pages    map[string]*template.Template
-	lockout  *auth.Lockout
-	public   *auth.RateLimiter // per-IP limit on unauthenticated share routes
-	unlock   *auth.Lockout     // per-IP lockout on share password guesses
-	totp     *auth.TOTPVerifier
-	kick     chan struct{} // asks the cleanup loop to run now
-	uploadMu sync.Map      // blob id -> *sync.Mutex, serialises chunks of one upload
-	live     *live.Hub     // Live Transfer meeting point (in memory)
-	origin   string
+	cfg       config.Config
+	st        *store.Store
+	vault     *vault.Vault
+	log       *slog.Logger
+	pages     map[string]*template.Template
+	lockout   *auth.Lockout
+	public    *auth.RateLimiter // per-IP limit on unauthenticated share routes
+	unlock    *auth.Lockout     // per-IP lockout on share password guesses
+	tokenFail *auth.Lockout     // per-IP lockout on wrong API tokens
+	totp      *auth.TOTPVerifier
+	kick      chan struct{} // asks the cleanup loop to run now
+	uploadMu  sync.Map      // blob id -> *sync.Mutex, serialises chunks of one upload
+	live      *live.Hub     // Live Transfer meeting point (in memory)
+	origin    string
 }
 
 // New builds a server. kick may be nil.
@@ -56,12 +57,13 @@ func New(cfg config.Config, st *store.Store, v *vault.Vault, log *slog.Logger, k
 	}
 	return &Server{
 		cfg: cfg, st: st, vault: v, log: log, pages: pages, kick: kick,
-		lockout: auth.NewLockout(5, 15*time.Minute, 15*time.Minute),
-		unlock:  auth.NewLockout(10, 15*time.Minute, 15*time.Minute),
-		public:  auth.NewRateLimiter(120, 60),
-		totp:    auth.NewTOTPVerifier(),
-		live:    newLiveHub(),
-		origin:  u.Scheme + "://" + u.Host,
+		lockout:   auth.NewLockout(5, 15*time.Minute, 15*time.Minute),
+		unlock:    auth.NewLockout(10, 15*time.Minute, 15*time.Minute),
+		tokenFail: auth.NewLockout(10, 15*time.Minute, 15*time.Minute),
+		public:    auth.NewRateLimiter(120, 60),
+		totp:      auth.NewTOTPVerifier(),
+		live:      newLiveHub(),
+		origin:    u.Scheme + "://" + u.Host,
 	}, nil
 }
 
@@ -81,6 +83,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /{$}", s.requirePage(s.dashboardPage))
 	mux.HandleFunc("GET /settings", s.requirePage(s.settingsPage))
 
+	s.appRoutes(mux)
 	s.apiRoutes(mux)
 	s.liveRoutes(mux)
 	s.publicRoutes(mux)
@@ -89,15 +92,21 @@ func (s *Server) Handler() http.Handler {
 
 func (s *Server) apiRoutes(mux *http.ServeMux) {
 	api := func(pattern string, h http.HandlerFunc) { mux.HandleFunc(pattern, s.requireAPI(h)) }
+	// These accept an API token too (scripts, the cpup command): upload and create only.
+	upload := func(pattern string, h http.HandlerFunc) { mux.HandleFunc(pattern, s.requireUploader(h)) }
+	upload("POST /api/shares", s.createShare)
+	upload("POST /api/uploads", s.startUpload)
+	upload("PUT /api/uploads/{id}/{chunk}", s.putChunk)
+	upload("DELETE /api/uploads/{id}", s.cancelUpload)
+
 	api("GET /api/shares", s.listShares)
-	api("POST /api/shares", s.createShare)
 	api("PATCH /api/shares/{slug}", s.updateShare)
 	api("DELETE /api/shares/{slug}", s.deleteShare)
 	api("POST /api/shares/{slug}/regenerate", s.regenerateShare)
 	api("GET /api/shares/{slug}/log", s.shareLog)
-	api("POST /api/uploads", s.startUpload)
-	api("PUT /api/uploads/{id}/{chunk}", s.putChunk)
-	api("DELETE /api/uploads/{id}", s.cancelUpload)
+	api("GET /api/account/tokens", s.listTokens)
+	api("POST /api/account/tokens", s.createToken)
+	api("DELETE /api/account/tokens/{id}", s.deleteToken)
 	api("GET /api/settings", s.getSettings)
 	api("PUT /api/settings", s.putSettings)
 	api("GET /api/usage", s.usage)
@@ -138,7 +147,9 @@ func (s *Server) secure(next http.Handler) http.Handler {
 		if s.cfg.SecureCookies {
 			h.Set("Strict-Transport-Security", "max-age=31536000")
 		}
-		if r.Method != http.MethodGet && r.Method != http.MethodHead && !s.sameOrigin(r) {
+		// /share-target only redirects (the service worker handles real shares), so the share
+		// sheet's POST is never refused, whatever Sec-Fetch-Site the phone sends.
+		if r.Method != http.MethodGet && r.Method != http.MethodHead && r.URL.Path != "/share-target" && !s.sameOrigin(r) {
 			http.Error(w, "cross-site request refused", http.StatusForbidden)
 			return
 		}

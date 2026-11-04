@@ -20,8 +20,13 @@ save a link from any browser; pick it up later from another machine. Everything 
 - **Live transfer** (`/live`): send big files or whole folders (5, 10 GB, more) from one device straight
   to another on the home network. Open Live on both devices, pick files on one, tap Receive on the other.
   See [Live transfer](#live-transfer).
+- **Phone app**: install cp from the browser (Android: menu → Install app) and it shows up in the
+  share sheet: **Share → cp** on a photo, file, link or text opens New share with it filled in.
+  See [Phone app](#phone-app).
+- **Terminal** (`cpup`): `cpup file.pdf`, `cat log.txt | cpup -e 1h`, `cpup https://…` with an API
+  token that can only create shares. See [Terminal uploads](#terminal-uploads-cpup).
 - **Settings**: password, username, 2FA, default expiry, cleanup interval, global public-sharing
-  switch, history retention, auto log out time, active logins (end one or all others).
+  switch, history retention, auto log out time, active logins (end one or all others), API tokens.
 
 ## Design notes
 
@@ -34,6 +39,41 @@ save a link from any browser; pick it up later from another machine. Everything 
 | Disk safety | `CP_STORAGE_CAP_MB` hard cap; uploads are refused when it would be exceeded |
 | Web security | Strict CSP (no inline script), CSRF token plus same-origin check, `Referrer-Policy: same-origin`, `noindex`, user files never rendered as HTML |
 | Container | distroless, non-root, read-only root fs, all capabilities dropped, 256 MB / 1 CPU limits, loopback-only port |
+
+## Phone app
+
+cp ships a web app manifest and a small service worker, so Chrome, Edge and Samsung Internet on
+Android can install it, and it then appears in the system share sheet (Web Share Target).
+
+- Sharing to cp opens the dashboard with **New share** pre-filled: the title as the name, a page
+  address as a link, other text as text, files as files. You still pick the options and tap Create;
+  uploads use the normal chunked path, so the 100 MB per file limit applies.
+- What was shared waits in that browser (IndexedDB) until the dashboard picks it up, so it survives
+  having to log in first. It is taken out once, and dropped if not picked up within an hour.
+- The service worker only answers the share sheet's `POST /share-target`. It caches nothing and
+  never sees other requests; it is registered only on owner pages, never for share visitors.
+- iPhone/iPad: Safari can add cp to the Home screen but has no share sheet support for web apps.
+
+## Terminal uploads (cpup)
+
+`cpup` is a bash + curl script served by cp itself. It uses an **API token** (Settings → API
+tokens; needs your password, shown once, stored hashed, at most 10, revocable). A token can only
+upload and create shares: it cannot list, open, change or delete them, or reach settings or the
+account. Ten wrong tokens from one IP lock it out for 15 minutes; `cp reset-password` revokes all.
+
+```sh
+mkdir -p ~/.local/bin && curl -fsSL https://cp.example.com/cpup -o ~/.local/bin/cpup && chmod +x ~/.local/bin/cpup
+cpup --setup                       # saves address + token in ~/.config/cpup/config (mode 600)
+echo hello | cpup                  # text share
+cpup -t "logs" -e 6h -p a.log b.png  # files, name, 6 hour expiry, public link
+cpup https://example.com/page      # link share
+cpup --help
+```
+
+It prints the share link. Files go up in the server's chunk size with retries, the token is passed
+to curl through a private file (never on the command line), and `CP_URL` / `CP_TOKEN` override
+the config file. Raw API: `Authorization: Bearer cpt_…` on `POST /api/uploads`,
+`PUT /api/uploads/{id}/{n}` and `POST /api/shares`; no CSRF header is needed with a token.
 
 ## Live transfer
 
@@ -160,6 +200,9 @@ cd qa && npm install && node e2e.js            # CP_URL=http://localhost:8090 to
 # login sessions (5-login cap, ending one, auto log out); logs in many times, so throwaway instance
 # only. IDLE_WAIT=1 adds a real 5-minute idle logout (~6 min).
 CP_URL=http://localhost:18091 SESS_USER=tester SESS_PASS=<pick-one> node qa/sessions-e2e.js
+# phone app (installable, share sheet incl. files and the logged-out case) + API tokens + the real
+# cpup script (20 MB multi-chunk file checked by sha256); creates/revokes tokens, so throwaway only
+CP_URL=http://localhost:18092 APP_USER=tester APP_PASS=<pick-one> node qa/app-e2e.js
 # streaming ZIP writer used by Live transfer (needs python3 and unzip)
 node --test qa/
 # Live transfer between real engines (Firefox ≈ Zen, WebKit ≈ Safari, Chromium ≈ Opera), against a

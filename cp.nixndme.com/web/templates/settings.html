@@ -84,5 +84,36 @@
   <ul class="session-list" id="session-list"></ul>
   <div class="row"><button type="button" class="btn" id="logout-others">Log out all other browsers</button><span class="muted" id="sess-msg"></span></div>
 </section>
+
+<section class="card">
+  <h2>Phone app</h2>
+  <p class="muted">Install cp as an app to share straight from other apps: pick <b>Share → cp</b> on a photo, file,
+    link or text and the New share dialog opens with it. On Android open your browser menu and choose
+    <b>Install app</b> or <b>Add to Home screen</b> (Chrome, Edge, Samsung Internet). iPhone and iPad can add cp to
+    the Home screen, but Safari does not support the share sheet for web apps.</p>
+  <div class="row" id="install-row" hidden><button type="button" class="primary" id="install-app">Install cp</button></div>
+</section>
+
+<section class="card">
+  <h2>API tokens</h2>
+  <p class="muted">A token lets a script or the <code>cpup</code> command create shares from a terminal. It can only
+    create shares: it cannot list, open, change or delete them, or change settings. Tokens do not expire and
+    stay valid after a password change: revoke one here when that machine no longer needs it.</p>
+  <form id="token-form" class="stack">
+    <div class="grid">
+      <label>Name <input id="tok-name" maxlength="60" autocomplete="off" placeholder="e.g. work laptop" required></label>
+      <label>Current password <input type="password" id="tok-password" autocomplete="current-password" required></label>
+    </div>
+    <div class="row"><button type="submit" class="primary">Create token</button><span class="muted" id="tok-msg"></span></div>
+  </form>
+  <div id="tok-new" class="stack token-new" hidden>
+    <p><b>Copy this token now:</b> it is shown only once.</p>
+    <div class="row"><code id="tok-secret" class="secret"></code><button type="button" class="btn small" id="tok-copy">Copy</button></div>
+    <p class="muted">Install <code>cpup</code> (needs bash and curl) and save the token:</p>
+    <pre class="cmd" id="tok-install"></pre>
+    <p class="muted">Then: <code>cpup file.pdf</code>, <code>cat log.txt | cpup -e 1h</code>, <code>cpup https://…</code>, <code>cpup --help</code>.</p>
+  </div>
+  <ul class="session-list" id="token-list"></ul>
+</section>
 {{end}}
 {{define "scripts"}}<script src="{{asset "settings.js"}}"></script>{{end}}

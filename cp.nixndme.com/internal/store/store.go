@@ -101,6 +101,15 @@ CREATE TABLE IF NOT EXISTS access_log (
   ok INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS access_share ON access_log(share_pk, at);
+CREATE TABLE IF NOT EXISTS api_tokens (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  last_used INTEGER NOT NULL DEFAULT 0,
+  last_ip TEXT NOT NULL DEFAULT ''
+);
 `
 
 // Open opens (creating if needed) the database in dataDir. synchronous=FULL plus WAL keeps
