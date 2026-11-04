@@ -57,7 +57,7 @@ func (s *Server) CleanupOnce() {
 		s.log.Info("cleanup: shares ended", "count", len(due))
 	}
 	s.dropStaleUploads()
-	if err := s.st.PurgeExpired(); err != nil {
+	if err := s.st.PurgeExpired(s.st.Now() - settings.SessionIdle); err != nil {
 		s.log.Error("cleanup: sessions", "err", err)
 	}
 	if settings.HistoryDays > 0 {

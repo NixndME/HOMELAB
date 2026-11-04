@@ -28,7 +28,12 @@ func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) {
 		s.internal(w, "load user", err)
 		return
 	}
-	sessions, _ := s.st.CountSessions(u.ID)
+	live, err := s.st.ListSessions(u.ID, s.idleSince())
+	if err != nil {
+		s.internal(w, "list sessions", err)
+		return
+	}
+	sessions := len(live)
 	writeJSON(w, http.StatusOK, map[string]any{
 		"settings": c, "username": u.Username, "totp_enabled": u.TOTPEnabled, "sessions": sessions,
 		"limits": map[string]any{"max_file_bytes": s.cfg.MaxFileBytes, "storage_bytes": s.cfg.StorageBytes,
@@ -224,6 +229,71 @@ func (s *Server) logoutOthers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]int64{"ended": n})
+}
+
+type sessionJSON struct {
+	ID        int64  `json:"id"`
+	CreatedAt int64  `json:"created_at"`
+	LastSeen  int64  `json:"last_seen"`
+	ExpiresAt int64  `json:"expires_at"`
+	IP        string `json:"ip"`
+	UA        string `json:"ua"`
+	Current   bool   `json:"current"`
+}
+
+// listSessions shows every live login so the owner can end them one by one.
+func (s *Server) listSessions(w http.ResponseWriter, r *http.Request) {
+	o := ownerFrom(r.Context())
+	list, err := s.st.ListSessions(o.UserID, s.idleSince())
+	if err != nil {
+		s.internal(w, "list sessions", err)
+		return
+	}
+	out := make([]sessionJSON, 0, len(list))
+	for _, sess := range list {
+		out = append(out, sessionJSON{ID: sess.ID, CreatedAt: sess.CreatedAt, LastSeen: sess.LastSeen,
+			ExpiresAt: sess.ExpiresAt, IP: sess.IP, UA: sess.UA, Current: sess.ID == o.SessionID})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"sessions": out, "max": maxSessions,
+		"idle_seconds": int64(s.sessionIdle().Seconds())})
+}
+
+// endSession logs out one login. Ending the current one also clears this browser's cookie.
+func (s *Server) endSession(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil || id <= 0 {
+		apiError(w, http.StatusBadRequest, "bad session id")
+		return
+	}
+	o := ownerFrom(r.Context())
+	found, err := s.st.DeleteSessionByID(o.UserID, id)
+	if err != nil {
+		s.internal(w, "end session", err)
+		return
+	}
+	if !found {
+		apiError(w, http.StatusNotFound, "that login has already ended")
+		return
+	}
+	current := id == o.SessionID
+	if current {
+		s.clearSessionCookie(w)
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true, "current": current})
+}
+
+// sessionStatus tells the page how long until this login ends from inactivity. Pages call it
+// as a background request to check, and as a normal request to report activity.
+func (s *Server) sessionStatus(w http.ResponseWriter, r *http.Request) {
+	o := ownerFrom(r.Context())
+	idle := s.sessionIdle()
+	now := s.now().Unix()
+	last := o.LastSeen
+	if r.Header.Get(backgroundHeader) == "" && now-last >= int64(touchGap.Seconds()) {
+		last = now // touch just recorded this request
+	}
+	left := max(last+int64(idle.Seconds())-now, 0)
+	writeJSON(w, http.StatusOK, map[string]int64{"idle_seconds": int64(idle.Seconds()), "idle_left": left})
 }
 
 // internal logs the detail server-side and returns a generic message to the client.

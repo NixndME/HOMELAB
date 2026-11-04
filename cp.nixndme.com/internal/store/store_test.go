@@ -88,3 +88,34 @@ func TestFileRolesMigrationMarksOldTextShares(t *testing.T) {
 		t.Fatalf("old text share not migrated to role text: %+v (pk %d)", got.Files, sh.PK)
 	}
 }
+
+func TestOldSessionsGetLastSeenAndCountAsIdle(t *testing.T) {
+	dir := t.TempDir()
+	old, err := sql.Open("sqlite", "file:"+filepath.Join(dir, "cp.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// users and sessions as created before idle logout (no last_seen).
+	_, err = old.Exec(`CREATE TABLE users (id INTEGER PRIMARY KEY, username TEXT NOT NULL UNIQUE, pass_hash TEXT NOT NULL,
+  totp_secret TEXT NOT NULL DEFAULT '', totp_enabled INTEGER NOT NULL DEFAULT 0, updated_at INTEGER NOT NULL);
+CREATE TABLE sessions (token_hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  csrf TEXT NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, ip TEXT NOT NULL DEFAULT '', ua TEXT NOT NULL DEFAULT '');
+INSERT INTO users(id, username, pass_hash, updated_at) VALUES (1, 'u', 'h', 1);
+INSERT INTO sessions(token_hash, user_id, csrf, created_at, expires_at) VALUES ('t', 1, 'c', 1, 9999999999);`)
+	old.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	st, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	if _, err := st.SessionByHash("t", 0); err != ErrNotFound {
+		t.Fatalf("pre-migration session should count as idle, got %v", err)
+	}
+	all, err := st.ListSessions(1, -1)
+	if err != nil || len(all) != 1 || all[0].LastSeen != 0 {
+		t.Fatalf("row lost or wrong last_seen: %+v %v", all, err)
+	}
+}

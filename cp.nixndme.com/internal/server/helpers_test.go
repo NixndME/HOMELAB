@@ -75,7 +75,14 @@ func newEnv(t *testing.T, tweak ...func(*config.Config)) *env {
 	return e
 }
 
-func (e *env) advance(d time.Duration) { e.clock = e.clock.Add(d) }
+// advance moves the clock and logs the owner back in if that idled the login out, so tests
+// about share expiry keep a working owner. Session tests move e.clock directly.
+func (e *env) advance(d time.Duration) {
+	e.clock = e.clock.Add(d)
+	if r := e.get(e.owner, "/api/session"); r.status == http.StatusUnauthorized {
+		e.login(e.owner, testUser, testPass, "")
+	}
+}
 
 func (e *env) client() *http.Client {
 	jar, _ := cookiejar.New(nil)

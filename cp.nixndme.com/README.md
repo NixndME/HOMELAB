@@ -5,6 +5,10 @@ save a link from any browser; pick it up later from another machine. Everything 
 **hard-deleted** on schedule. Data never leaves the host it runs on.
 
 - **Login**: one account (argon2id password, lockout after 5 failures, optional TOTP 2FA).
+- **Sessions**: a login ends after 15 minutes without activity (10, 30 or 60 in Settings) and after
+  24 hours at most. Background refreshes of an open tab do not count as activity. At most 5 logins
+  at once: a 6th ends the least recently used one. Settings lists every login (device, IP, last
+  active) with its own Log out button.
 - **Dashboard**: every share (active and ended), search, storage-usage bar, paste (Ctrl+V) or drop
   files anywhere to create a share.
 - **Share types**: text (syntax highlighting, raw view for `curl`), files (multi-file, zip download,
@@ -17,7 +21,7 @@ save a link from any browser; pick it up later from another machine. Everything 
   to another on the home network. Open Live on both devices, pick files on one, tap Receive on the other.
   See [Live transfer](#live-transfer).
 - **Settings**: password, username, 2FA, default expiry, cleanup interval, global public-sharing
-  switch, history retention, log out other sessions.
+  switch, history retention, auto log out time, active logins (end one or all others).
 
 ## Design notes
 
@@ -153,6 +157,9 @@ Roll back by setting `CP_IMAGE=nixndme/cp:<old-sha>` in `.env` and running `dock
 docker run --rm -v "$PWD":/src -w /src golang:1-alpine go test ./...
 # headless end-to-end against a running instance (reads credentials from .env)
 cd qa && npm install && node e2e.js            # CP_URL=http://localhost:8090 to skip the tunnel
+# login sessions (5-login cap, ending one, auto log out); logs in many times, so throwaway instance
+# only. IDLE_WAIT=1 adds a real 5-minute idle logout (~6 min).
+CP_URL=http://localhost:18091 SESS_USER=tester SESS_PASS=<pick-one> node qa/sessions-e2e.js
 # streaming ZIP writer used by Live transfer (needs python3 and unzip)
 node --test qa/
 # Live transfer between real engines (Firefox ≈ Zen, WebKit ≈ Safari, Chromium ≈ Opera), against a

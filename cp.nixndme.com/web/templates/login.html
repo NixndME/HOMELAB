@@ -3,7 +3,7 @@
 {{define "content"}}
 <section class="card login">
   <h1>Log in</h1>
-  {{with .Error}}<p class="error" role="alert">{{.}}</p>{{end}}
+  {{with .Error}}<p class="error" role="alert">{{.}}</p>{{else}}{{with .Notice}}<p class="muted" role="status">{{.}}</p>{{end}}{{end}}
   <form method="post" action="/login" autocomplete="on">
     <label>Username <input name="username" autocomplete="username" required autofocus value="{{.Username}}"></label>
     <label>Password <input name="password" type="password" autocomplete="current-password" required></label>

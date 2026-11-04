@@ -71,7 +71,17 @@
 
 <section class="card">
   <h2>Sessions</h2>
+  <form id="idle-form" class="row">
+    <label>Auto log out after no activity for
+      <select id="s-session-idle">
+        <option value="600">10 minutes</option><option value="900">15 minutes</option><option value="1800">30 minutes</option>
+        <option value="3600">1 hour</option>
+      </select>
+    </label>
+    <button type="submit" class="primary">Save</button><span class="muted" id="idle-msg"></span>
+  </form>
   <p class="muted" id="sessions"></p>
+  <ul class="session-list" id="session-list"></ul>
   <div class="row"><button type="button" class="btn" id="logout-others">Log out all other browsers</button><span class="muted" id="sess-msg"></span></div>
 </section>
 {{end}}

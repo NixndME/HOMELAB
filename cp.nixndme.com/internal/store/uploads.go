@@ -111,10 +111,10 @@ func (s *Store) AccessLog(sharePK int64, limit int) ([]Access, error) {
 	return out, rows.Err()
 }
 
-// PurgeExpired removes expired sessions and grants.
-func (s *Store) PurgeExpired() error {
+// PurgeExpired removes expired grants and sessions that expired or sat idle since idleSince.
+func (s *Store) PurgeExpired(idleSince int64) error {
 	now := s.Now()
-	if _, err := s.db.Exec(`DELETE FROM sessions WHERE expires_at <= ?`, now); err != nil {
+	if _, err := s.db.Exec(`DELETE FROM sessions WHERE expires_at <= ? OR last_seen <= ?`, now, idleSince); err != nil {
 		return err
 	}
 	_, err := s.db.Exec(`DELETE FROM grants WHERE expires_at <= ?`, now)

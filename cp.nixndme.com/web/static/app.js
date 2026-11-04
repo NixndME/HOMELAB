@@ -5,14 +5,19 @@ const CP = (() => {
   const csrfMeta = document.querySelector('meta[name="csrf"]');
   const csrf = csrfMeta ? csrfMeta.content : '';
 
-  async function api(method, path, body) {
+  // Requests the page makes on its own (polls, idle checks) pass { background: true } so
+  // they do not count as activity and an unattended tab still logs out.
+  let lastReported = Date.now();
+  async function api(method, path, body, { background = false } = {}) {
     const opts = { method, headers: { 'X-CSRF-Token': csrf }, credentials: 'same-origin' };
+    if (background) opts.headers['X-CP-Background'] = '1';
+    else lastReported = Date.now();
     if (body !== undefined) {
       opts.headers['Content-Type'] = 'application/json';
       opts.body = JSON.stringify(body);
     }
     const res = await fetch(path, opts);
-    if (res.status === 401) { location.href = '/login'; throw new Error('Logged out'); }
+    if (res.status === 401) { location.href = '/login?idle=1'; throw new Error('Logged out'); }
     if (res.status === 204) return null;
     let data = null;
     try { data = await res.json(); } catch (e) { data = null; }
@@ -124,5 +129,40 @@ const CP = (() => {
   refreshTimes();
   setInterval(() => refreshTimes(), 30000);
 
-  return { api, toast, copyText, bytes, duration, left, ago, date, openQR, armed, refreshTimes, csrf };
+  // Idle logout. The server ends a login after the configured inactivity. Typing, clicking or
+  // scrolling here reports activity (at most once a minute), so a long paste in progress keeps
+  // the login. A background check, timed to when the server says time is up, then sends an
+  // unattended tab to the login screen. A page doing long work without requests (a Live
+  // transfer runs peer to peer) registers keepAliveWhile(() => busy) and is renewed instead.
+  const REPORT_EVERY_MS = 60 * 1000;
+  const MIN_CHECK_MS = 5 * 1000;
+  const RENEW_MARGIN_S = 60; // look this long before the end, to renew a busy page in time
+  let idleTimer = null;
+  let isBusy = () => false;
+  function keepAliveWhile(predicate) { isBusy = predicate; }
+  function scheduleIdleCheck(left) {
+    clearTimeout(idleTimer);
+    const at = left > RENEW_MARGIN_S ? left - RENEW_MARGIN_S : left + 1;
+    idleTimer = setTimeout(checkIdle, Math.max(at * 1000, MIN_CHECK_MS));
+  }
+  async function checkIdle() {
+    try {
+      const r = await api('GET', '/api/session', undefined, { background: !isBusy() });
+      scheduleIdleCheck(r.idle_left);
+    } catch (e) {
+      scheduleIdleCheck(30); // offline or server restarting: look again soon
+    }
+  }
+  function onActivity() {
+    if (Date.now() - lastReported < REPORT_EVERY_MS) return;
+    api('GET', '/api/session').then((r) => scheduleIdleCheck(r.idle_left)).catch(() => {});
+  }
+  if (csrf) {
+    ['pointerdown', 'keydown', 'wheel', 'touchstart'].forEach((t) =>
+      document.addEventListener(t, onActivity, { passive: true, capture: true }));
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkIdle(); });
+    checkIdle();
+  }
+
+  return { api, toast, copyText, bytes, duration, left, ago, date, openQR, armed, refreshTimes, csrf, keepAliveWhile };
 })();

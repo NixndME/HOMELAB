@@ -16,12 +16,28 @@ type User struct {
 
 // Session is a logged-in browser.
 type Session struct {
+	ID        int64 // public handle for listing and ending one session; never the token
 	UserID    int64
 	CSRF      string
 	CreatedAt int64
 	ExpiresAt int64
+	LastSeen  int64 // last request the owner made (background polls excluded)
 	IP        string
 	UA        string
+}
+
+const sessionCols = `rowid, user_id, csrf, created_at, expires_at, last_seen, ip, ua`
+
+// liveSession is the condition a usable session meets: not past its absolute expiry and
+// used after idleSince. It takes (now, idleSince).
+const liveSession = `expires_at > ? AND last_seen > ?`
+
+type rowScanner interface{ Scan(dest ...any) error }
+
+func scanSession(row rowScanner) (Session, error) {
+	var sess Session
+	err := row.Scan(&sess.ID, &sess.UserID, &sess.CSRF, &sess.CreatedAt, &sess.ExpiresAt, &sess.LastSeen, &sess.IP, &sess.UA)
+	return sess, err
 }
 
 // CountUsers returns how many accounts exist (0 on first boot).
@@ -75,19 +91,75 @@ func (s *Store) SetTOTP(id int64, secret string, enabled bool) error {
 	return err
 }
 
-// CreateSession stores a session under the hash of its token.
-func (s *Store) CreateSession(tokenHash string, sess Session) error {
-	_, err := s.db.Exec(`INSERT INTO sessions(token_hash, user_id, csrf, created_at, expires_at, ip, ua) VALUES(?,?,?,?,?,?,?)`,
-		tokenHash, sess.UserID, sess.CSRF, sess.CreatedAt, sess.ExpiresAt, sess.IP, sess.UA)
+// CreateSession stores a session under the hash of its token, then keeps only the user's
+// maxSessions most recently used live sessions (the new one included); expired and idle
+// ones go too. It returns how many other sessions were removed.
+func (s *Store) CreateSession(tokenHash string, sess Session, maxSessions int, idleSince int64) (int64, error) {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(`INSERT INTO sessions(token_hash, user_id, csrf, created_at, expires_at, last_seen, ip, ua) VALUES(?,?,?,?,?,?,?,?)`,
+		tokenHash, sess.UserID, sess.CSRF, sess.CreatedAt, sess.ExpiresAt, sess.CreatedAt, sess.IP, sess.UA); err != nil {
+		return 0, err
+	}
+	res, err := tx.Exec(`DELETE FROM sessions WHERE user_id = ? AND token_hash <> ? AND rowid NOT IN (
+		SELECT rowid FROM sessions WHERE user_id = ? AND token_hash <> ? AND `+liveSession+`
+		ORDER BY last_seen DESC, created_at DESC LIMIT ?)`,
+		sess.UserID, tokenHash, sess.UserID, tokenHash, s.Now(), idleSince, maxSessions-1)
+	if err != nil {
+		return 0, err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+	return n, tx.Commit()
+}
+
+// SessionByHash returns a session that is neither expired nor idle since idleSince.
+func (s *Store) SessionByHash(tokenHash string, idleSince int64) (Session, error) {
+	sess, err := scanSession(s.db.QueryRow(`SELECT `+sessionCols+` FROM sessions WHERE token_hash = ? AND `+liveSession,
+		tokenHash, s.Now(), idleSince))
+	return sess, notFound(err)
+}
+
+// TouchSession records activity on a session, writing at most once per minGap seconds to
+// spare the SD card.
+func (s *Store) TouchSession(tokenHash string, minGap int64) error {
+	now := s.Now()
+	_, err := s.db.Exec(`UPDATE sessions SET last_seen = ? WHERE token_hash = ? AND last_seen <= ?`, now, tokenHash, now-minGap)
 	return err
 }
 
-// SessionByHash returns an unexpired session.
-func (s *Store) SessionByHash(tokenHash string) (Session, error) {
-	var sess Session
-	err := s.db.QueryRow(`SELECT user_id, csrf, created_at, expires_at, ip, ua FROM sessions WHERE token_hash = ? AND expires_at > ?`,
-		tokenHash, s.Now()).Scan(&sess.UserID, &sess.CSRF, &sess.CreatedAt, &sess.ExpiresAt, &sess.IP, &sess.UA)
-	return sess, notFound(err)
+// ListSessions returns the user's live sessions, most recently used first.
+func (s *Store) ListSessions(userID, idleSince int64) ([]Session, error) {
+	rows, err := s.db.Query(`SELECT `+sessionCols+` FROM sessions WHERE user_id = ? AND `+liveSession+
+		` ORDER BY last_seen DESC, created_at DESC`, userID, s.Now(), idleSince)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []Session{}
+	for rows.Next() {
+		sess, err := scanSession(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, sess)
+	}
+	return out, rows.Err()
+}
+
+// DeleteSessionByID logs out the user's session with that id and reports whether it existed.
+func (s *Store) DeleteSessionByID(userID, id int64) (bool, error) {
+	res, err := s.db.Exec(`DELETE FROM sessions WHERE user_id = ? AND rowid = ?`, userID, id)
+	if err != nil {
+		return false, err
+	}
+	n, err := res.RowsAffected()
+	return n > 0, err
 }
 
 // DeleteSession logs one browser out.
@@ -103,13 +175,6 @@ func (s *Store) DeleteOtherSessions(userID int64, keepHash string) (int64, error
 		return 0, err
 	}
 	return res.RowsAffected()
-}
-
-// CountSessions returns the number of live sessions.
-func (s *Store) CountSessions(userID int64) (int, error) {
-	var n int
-	err := s.db.QueryRow(`SELECT COUNT(*) FROM sessions WHERE user_id = ? AND expires_at > ?`, userID, s.Now()).Scan(&n)
-	return n, err
 }
 
 // Settings returns every stored setting.

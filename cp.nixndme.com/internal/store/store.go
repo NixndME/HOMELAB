@@ -125,6 +125,10 @@ func Open(dataDir string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("store: migrate file roles: %w", err)
 	}
+	if err := migrateSessionLastSeen(db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("store: migrate session activity: %w", err)
+	}
 	return &Store{db: db, now: time.Now}, nil
 }
 
@@ -177,6 +181,17 @@ func migrateFileRoles(db *sql.DB) error {
 		return err
 	}
 	_, err := db.Exec(`UPDATE files SET role = 'text' WHERE share_pk IN (SELECT pk FROM shares WHERE kind = 'text')`)
+	return err
+}
+
+// migrateSessionLastSeen adds sessions.last_seen to databases from before idle logout.
+// Existing sessions get 0, so they count as idle and every browser logs in again once.
+func migrateSessionLastSeen(db *sql.DB) error {
+	var n int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM pragma_table_info('sessions') WHERE name = 'last_seen'`).Scan(&n); err != nil || n > 0 {
+		return err
+	}
+	_, err := db.Exec(`ALTER TABLE sessions ADD COLUMN last_seen INTEGER NOT NULL DEFAULT 0`)
 	return err
 }
 

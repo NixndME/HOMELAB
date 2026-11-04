@@ -16,6 +16,7 @@ type Settings struct {
 	DefaultPublic   bool  `json:"default_public"`   // new shares get a public link by default
 	KeepHistory     bool  `json:"keep_history"`     // keep metadata of ended shares on the dashboard
 	HistoryDays     int64 `json:"history_days"`     // drop that metadata after N days (0 = keep)
+	SessionIdle     int64 `json:"session_idle"`     // seconds without activity before a login ends
 }
 
 // Allowed ranges.
@@ -25,6 +26,8 @@ const (
 	minCleanupInterval = 30
 	maxCleanupInterval = 24 * 3600
 	maxHistoryDays     = 3650
+	minSessionIdle     = 5 * 60
+	maxSessionIdle     = 8 * 3600
 )
 
 func defaultSettings() Settings {
@@ -35,6 +38,7 @@ func defaultSettings() Settings {
 		DefaultPublic:   false,
 		KeepHistory:     true,
 		HistoryDays:     30,
+		SessionIdle:     int64((15 * time.Minute).Seconds()),
 	}
 }
 
@@ -47,6 +51,8 @@ func (c Settings) Validate() error {
 		return fmt.Errorf("cleanup interval must be between 30 seconds and 24 hours")
 	case c.HistoryDays < 0 || c.HistoryDays > maxHistoryDays:
 		return fmt.Errorf("history days must be between 0 and %d", maxHistoryDays)
+	case c.SessionIdle < minSessionIdle || c.SessionIdle > maxSessionIdle:
+		return fmt.Errorf("auto log out must be between 5 minutes and 8 hours")
 	}
 	return nil
 }
@@ -61,6 +67,7 @@ func LoadSettings(st *store.Store) (Settings, error) {
 	readInt(raw, "default_expiry", &c.DefaultExpiry)
 	readInt(raw, "cleanup_interval", &c.CleanupInterval)
 	readInt(raw, "history_days", &c.HistoryDays)
+	readInt(raw, "session_idle", &c.SessionIdle)
 	readBool(raw, "public_sharing", &c.PublicSharing)
 	readBool(raw, "default_public", &c.DefaultPublic)
 	readBool(raw, "keep_history", &c.KeepHistory)
@@ -76,6 +83,7 @@ func SaveSettings(st *store.Store, c Settings) error {
 		"default_expiry":   store.FormatInt(c.DefaultExpiry),
 		"cleanup_interval": store.FormatInt(c.CleanupInterval),
 		"history_days":     store.FormatInt(c.HistoryDays),
+		"session_idle":     store.FormatInt(c.SessionIdle),
 		"public_sharing":   strconv.FormatBool(c.PublicSharing),
 		"default_public":   strconv.FormatBool(c.DefaultPublic),
 		"keep_history":     strconv.FormatBool(c.KeepHistory),

@@ -19,7 +19,9 @@ import (
 
 const (
 	sessionCookie   = "cps"
-	sessionLifetime = 7 * 24 * time.Hour
+	sessionLifetime = 24 * time.Hour   // hard limit, even for a browser in constant use
+	maxSessions     = 5                // logins at once; a new one ends the least recently used
+	touchGap        = 30 * time.Second // write session activity at most this often
 	grantLifetime   = 30 * time.Minute // how long a password unlock lasts
 	burnWindow      = 15 * time.Minute // how long a revealed burn-after-reading share stays readable
 	staleUploadAge  = 6 * time.Hour
@@ -106,6 +108,9 @@ func (s *Server) apiRoutes(mux *http.ServeMux) {
 	api("POST /api/account/totp/enable", s.totpEnable)
 	api("POST /api/account/totp/disable", s.totpDisable)
 	api("POST /api/account/logout-others", s.logoutOthers)
+	api("GET /api/account/sessions", s.listSessions)
+	api("DELETE /api/account/sessions/{id}", s.endSession)
+	api("GET /api/session", s.sessionStatus)
 }
 
 func (s *Server) publicRoutes(mux *http.ServeMux) {

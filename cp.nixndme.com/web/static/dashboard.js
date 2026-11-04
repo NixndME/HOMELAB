@@ -20,11 +20,11 @@ function el(tag, attrs, ...children) {
 
 let loadSeq = 0;
 
-async function loadShares() {
+async function loadShares(background = false) {
   const seq = ++loadSeq;
   const q = new URLSearchParams({ status: state.status, q: state.query });
   try {
-    const data = await CP.api('GET', '/api/shares?' + q);
+    const data = await CP.api('GET', '/api/shares?' + q, undefined, { background });
     if (seq !== loadSeq) return; // a newer request (e.g. a search) is in flight; drop this stale answer
     state.shares = data.shares;
     renderShares();
@@ -583,7 +583,7 @@ async function init() {
   }
   await Promise.all([loadShares(), loadUsage()]);
   setInterval(() => {
-    if (!document.querySelector('dialog[open]') && !document.querySelector('details.more[open]')) loadShares();
+    if (!document.querySelector('dialog[open]') && !document.querySelector('details.more[open]')) loadShares(true);
   }, REFRESH_MS);
 }
 

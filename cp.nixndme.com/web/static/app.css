@@ -242,3 +242,10 @@ textarea.links { min-height: 160px; white-space: pre; }
   .live-grid { grid-template-columns: 1fr; }
   .live-offers li { flex-direction: column; align-items: stretch; }
 }
+
+/* Settings: one row per active login */
+#idle-form { align-items: flex-end; }
+.session-list { list-style: none; margin: .5rem 0 1rem; padding: 0; }
+.session-list li { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .6rem 0; border-top: 1px solid var(--border); }
+.session-list li:last-child { border-bottom: 1px solid var(--border); }
+.session-list li > div { min-width: 0; overflow-wrap: anywhere; }

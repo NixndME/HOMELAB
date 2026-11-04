@@ -20,6 +20,8 @@
 
   const send = { files: [], name: '', total: 0, folder: false, id: null, ctl: null, running: false };
   const recv = { ctl: null, running: false, result: null };
+  // File data goes peer to peer with no requests to cp, so keep the login while it runs.
+  CP.keepAliveWhile(() => send.running || recv.running);
 
   // ---------- small helpers ----------
 
@@ -241,7 +243,7 @@
   async function refreshOffers() {
     if (recv.running || document.visibilityState !== 'visible') return;
     let list = [];
-    try { list = (await CP.api('GET', '/api/live')).transfers.filter((t) => t.id !== send.id); } catch (e) { return; }
+    try { list = (await CP.api('GET', '/api/live', undefined, { background: true })).transfers.filter((t) => t.id !== send.id); } catch (e) { return; }
     const ul = $('recv-offers');
     ul.replaceChildren(...list.map((t) => {
       const btn = el('button', { type: 'button', class: 'primary', text: 'Receive' });
